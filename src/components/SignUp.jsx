@@ -81,7 +81,7 @@ const SignUp = () => {
     if (!validateForm()) return;
 
     try {
-      await axios.post("https://cloud-backend-4.onrender.com", {
+      await axios.post("https://cloud-2lxn.onrender.com", {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,

@@ -76,7 +76,7 @@ const ClientDashboard = () => {
   const fetchQueries = async () => {
     try {
       setLoading(prev => ({ ...prev, fetch: true }));
-      const response = await axios.get('/api/queries', { withCredentials: true });
+      const response = await axios.get('https://cloud-2lxn.onrender.com', { withCredentials: true });
       setSubmittedQueries(response.data);
       showNotification('Queries fetched successfully', 'success');
     } catch (err) {
@@ -116,7 +116,7 @@ const ClientDashboard = () => {
         email: currentUser.email || queryForm.email
       } : queryForm;
 
-      const response = await axios.post('/api/queries', formData, { withCredentials: true });
+      const response = await axios.post('https://cloud-2lxn.onrender.com', formData, { withCredentials: true });
       setSubmittedQueries([response.data, ...submittedQueries]);
       setQueryForm({ name: '', email: '', message: '' });
       showNotification('Query submitted successfully!', 'success');

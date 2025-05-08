@@ -91,10 +91,10 @@ const SalesDashboard = () => {
       setError(null);
       
       if (activeTab === 0) {
-        const response = await api.get('/api/sales');
+        const response = await api.get('https://cloud-2lxn.onrender.com');
         setSales(response.data);
       } else if (activeTab === 1) {
-        const response = await api.get('/api/queries');
+        const response = await api.get('https://cloud-2lxn.onrender.com');
         setQueries(response.data);
         
         const responses = response.data
@@ -200,7 +200,7 @@ const SalesDashboard = () => {
         message: newQuery
       });
 
-      const response = await api.get('/api/queries');
+      const response = await api.get('https://cloud-2lxn.onrender.com');
       setQueries(response.data);
       
       setNewQuery('');
