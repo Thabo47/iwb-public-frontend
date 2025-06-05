@@ -15,7 +15,7 @@ import {
 import { LineChart, BarChart, PieChart } from '@mui/x-charts';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://cloud-backend-5.onrender.com/api';
 
 // Create axios instance with auth
 const api = axios.create({
