@@ -1,11 +1,21 @@
-import React, { useState, useEffect } from 'react';
+"use client"
+
+import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import {
-  Box,
+  Container,
+  Grid,
+  Card,
+  CardContent,
+  CardMedia,
   Typography,
+  Button,
+  Box,
+  TextField,
   Tabs,
   Tab,
-  TextField,
-  Button,
+  Badge,
+  IconButton,
   Table,
   TableBody,
   TableCell,
@@ -13,249 +23,945 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Chip,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
+  Snackbar,
   Alert,
   CircularProgress,
-  Snackbar
-} from '@mui/material';
-import { Send, CheckCircle, Pending, Delete } from '@mui/icons-material';
-import axios from 'axios';
-import { useAuth } from '../context/AuthContext';
+  MenuItem,
+  Avatar,
+  Chip,
+  Rating,
+} from "@mui/material"
+import {
+  ShoppingCart,
+  Computer,
+  Support,
+  History,
+  Delete,
+  CheckCircle,
+  Payment,
+  Add,
+  Remove,
+  Favorite,
+  FavoriteBorder,
+  Visibility,
+} from "@mui/icons-material"
+import axios from "axios"
 
-import ramImage from './images/ram.jpg';
-import hddImage from './images/hdd.jpg';
-import capacitorsImage from './images/capacitors.jpg';
-import laptopRamImage from './images/laptop-ram.jpg';
+const API_BASE_URL = "http://localhost:5000/api"
 
-const ClientDashboard = () => {
-  const [activeTab, setActiveTab] = useState(0);
-  const [queryForm, setQueryForm] = useState({ name: '', email: '', message: '' });
-  const [submittedQueries, setSubmittedQueries] = useState([]);
-  const [formErrors, setFormErrors] = useState({});
-  const [loading, setLoading] = useState({ submit: false, fetch: false });
-  const [notification, setNotification] = useState({ open: false, message: '', severity: 'success' });
-  const { currentUser } = useAuth();
+// Create axios instance with auth
+const api = axios.create({
+  baseURL: API_BASE_URL,
+})
 
-  const [products] = useState([
-    {
-      id: 1,
-      name: "DDR4 RAM 8GB",
-      description: "Refurbished high-quality DDR4 RAM modules, perfect for desktops and laptops.",
-      price: "M250",
-      image: ramImage
-    },
-    {
-      id: 2,
-      name: "Hard Drive 1TB",
-      description: "Securely wiped and fully functional 1TB SATA hard drives with warranty.",
-      price: "M500",
-      image: hddImage
-    },
-    {
-      id: 3,
-      name: "Motherboard Capacitors Pack",
-      description: "Recovered capacitors ideal for electronics repair projects (pack of 50).",
-      price: "M150",
-      image: capacitorsImage
-    },
-    {
-      id: 4,
-      name: "Laptop RAM 4GB",
-      description: "Reliable laptop RAM modules, refurbished and tested with 6-month warranty.",
-      price: "M180",
-      image: laptopRamImage
-    }
-  ]);
+// Add auth token to requests
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token")
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
 
-  const [cart, setCart] = useState([]);
+const Dashboard = () => {
+  const navigate = useNavigate()
+  const [activeTab, setActiveTab] = useState(0)
+  const [products, setProducts] = useState([])
+  const [cart, setCart] = useState(null)
+  const [orders, setOrders] = useState([])
+  const [queries, setQueries] = useState([])
+  const [newQuery, setNewQuery] = useState({ subject: "", message: "" })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+  const [shippingInfo, setShippingInfo] = useState({
+    address: "",
+    paymentMethod: "Credit Card",
+  })
+  const [favorites, setFavorites] = useState([])
+  const [searchTerm, setSearchTerm] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState("all")
 
+  // Fetch data on component mount
   useEffect(() => {
-    if (activeTab === 1) fetchQueries();
-  }, [activeTab]);
+    const fetchData = async () => {
+      try {
+        setLoading(true)
 
-  const fetchQueries = async () => {
-    try {
-      setLoading(prev => ({ ...prev, fetch: true }));
-      const response = await axios.get('https://cloud-2lxn.onrender.com', { withCredentials: true });
-      setSubmittedQueries(response.data);
-      showNotification('Queries fetched successfully', 'success');
-    } catch (err) {
-      showNotification('Failed to fetch queries. Please try again.', 'error');
-    } finally {
-      setLoading(prev => ({ ...prev, fetch: false }));
+        // Fetch products
+        const productsRes = await api.get("/products")
+        setProducts(productsRes.data)
+
+        // Fetch cart
+        const cartRes = await api.get("/cart")
+        setCart(cartRes.data)
+
+        // Fetch orders
+        const ordersRes = await api.get("/orders")
+        setOrders(ordersRes.data)
+
+        // Fetch queries
+        const queriesRes = await api.get("/queries")
+        setQueries(queriesRes.data)
+
+        setLoading(false)
+      } catch (err) {
+        setError("Failed to load dashboard data")
+        setLoading(false)
+      }
     }
-  };
 
-  const handleTabChange = (event, newValue) => setActiveTab(newValue);
+    fetchData()
+  }, [])
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setQueryForm(prev => ({ ...prev, [name]: value }));
-    if (formErrors[name]) setFormErrors(prev => ({ ...prev, [name]: '' }));
-  };
+  // Handle tab change
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue)
+  }
 
-  const validateForm = () => {
-    const errors = {};
-    if (!queryForm.name.trim()) errors.name = 'Name is required';
-    if (!queryForm.email.trim()) errors.email = 'Email is required';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(queryForm.email)) errors.email = 'Invalid email';
-    if (!queryForm.message.trim()) errors.message = 'Message is required';
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleSubmitQuery = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-
+  // Add to cart
+  const handleAddToCart = async (productId) => {
     try {
-      setLoading(prev => ({ ...prev, submit: true }));
-      const formData = currentUser ? {
-        ...queryForm,
-        name: currentUser.name || queryForm.name,
-        email: currentUser.email || queryForm.email
-      } : queryForm;
-
-      const response = await axios.post('https://cloud-2lxn.onrender.com', formData, { withCredentials: true });
-      setSubmittedQueries([response.data, ...submittedQueries]);
-      setQueryForm({ name: '', email: '', message: '' });
-      showNotification('Query submitted successfully!', 'success');
-      setActiveTab(1);
+      const res = await api.post("/cart", {
+        productId,
+        quantity: 1,
+      })
+      setCart(res.data)
+      setSuccess("Product added to cart!")
     } catch (err) {
-      showNotification('Failed to submit query. Please try again.', 'error');
-    } finally {
-      setLoading(prev => ({ ...prev, submit: false }));
+      setError(err.response?.data?.message || "Failed to add to cart")
     }
-  };
+  }
 
-  const showNotification = (message, severity) => setNotification({ open: true, message, severity });
-  const handleCloseNotification = () => setNotification(prev => ({ ...prev, open: false }));
-  const formatDate = (dateString) => new Date(dateString).toLocaleString();
+  // Update cart item quantity
+  const updateCartItem = async (itemId, newQuantity) => {
+    try {
+      if (newQuantity < 1) return
 
-  const handleAddToCart = (product) => {
-    setCart(prev => [...prev, product]);
-  };
+      const res = await api.put(`/cart/${itemId}`, {
+        quantity: newQuantity,
+      })
+      setCart(res.data)
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to update cart")
+    }
+  }
 
-  const handleRemoveFromCart = (id) => {
-    setCart(prev => prev.filter(item => item.id !== id));
-  };
+  // Remove from cart
+  const handleRemoveFromCart = async (itemId) => {
+    try {
+      const res = await api.delete(`/cart/${itemId}`)
+      setCart(res.data)
+      setSuccess("Item removed from cart")
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to remove item")
+    }
+  }
 
-  return (
-    <Box sx={{ width: '100%', p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        Client Dashboard
-      </Typography>
+  // Handle query submission
+  const handleQuerySubmit = async () => {
+    try {
+      if (!newQuery.subject || !newQuery.message) {
+        setError("Please fill all fields")
+        return
+      }
 
-      {/* Product Section */}
-      <Box sx={{ mb: 5 }}>
-        <Typography variant="h5" sx={{ mb: 2 }}>Our Products</Typography>
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 3 }}>
-          {products.map((product) => (
-            <Box key={product.id} sx={{ border: '1px solid #ddd', borderRadius: 2, overflow: 'hidden', boxShadow: 1 }}>
-              <Box sx={{ height: 200, overflow: 'hidden' }}>
-                <img src={product.image} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              </Box>
-              <Box sx={{ p: 2 }}>
-                <Typography variant="h6">{product.name}</Typography>
-                <Typography variant="body2" sx={{ mb: 1 }}>{product.description}</Typography>
-                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>{product.price}</Typography>
-                <Button variant="contained" size="small" sx={{ mt: 1, mr: 1 }} onClick={() => handleAddToCart(product)}>Add to Cart</Button>
-              </Box>
-            </Box>
+      const res = await api.post("/queries", newQuery)
+
+      setQueries([res.data, ...queries])
+      setNewQuery({ subject: "", message: "" })
+      setSuccess("Query submitted successfully!")
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to submit query")
+    }
+  }
+
+  // Place order with better error handling
+  const handlePlaceOrder = async () => {
+    try {
+      // Validation checks
+      if (!shippingInfo.address.trim()) {
+        setError("Please enter a valid shipping address")
+        return
+      }
+
+      if (!cart || !cart.items || cart.items.length === 0) {
+        setError("Your cart is empty. Please add items before placing an order.")
+        return
+      }
+
+      // Check if user is authenticated
+      const token = localStorage.getItem("token")
+      if (!token) {
+        setError("Please log in to place an order")
+        navigate("/login")
+        return
+      }
+
+      setLoading(true)
+      setError("")
+
+      console.log("Placing order with:", {
+        shippingAddress: shippingInfo.address,
+        paymentMethod: shippingInfo.paymentMethod,
+        cartItems: cart.items.length,
+      })
+
+      const res = await api.post("/orders", {
+        shippingAddress: shippingInfo.address,
+        paymentMethod: shippingInfo.paymentMethod,
+      })
+
+      console.log("Order placed successfully:", res.data)
+
+      // Update local state
+      setOrders([res.data, ...orders])
+
+      // Clear cart
+      const cartRes = await api.get("/cart")
+      setCart(cartRes.data)
+
+      // Clear shipping info
+      setShippingInfo({
+        address: "",
+        paymentMethod: "Credit Card",
+      })
+
+      setSuccess("Order placed successfully! Check your orders tab for details.")
+      setActiveTab(2) // Switch to Orders tab
+    } catch (err) {
+      console.error("Order placement error:", err)
+
+      if (err.response?.status === 401) {
+        setError("Session expired. Please log in again.")
+        localStorage.removeItem("token")
+        navigate("/login")
+      } else if (err.response?.status === 400) {
+        setError(err.response.data.message || "Invalid order data. Please check your cart and try again.")
+      } else {
+        setError(err.response?.data?.message || "Failed to place order. Please try again.")
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Calculate cart total with better error handling
+  const calculateCartTotal = () => {
+    if (!cart || !cart.items || cart.items.length === 0) return 0
+
+    return cart.items.reduce((total, item) => {
+      if (item && item.product && typeof item.product.price === "number" && typeof item.quantity === "number") {
+        return total + item.product.price * item.quantity
+      }
+      return total
+    }, 0)
+  }
+
+  // Close alerts
+  const handleCloseAlert = () => {
+    setError("")
+    setSuccess("")
+  }
+
+  // Toggle favorite
+  const toggleFavorite = (productId) => {
+    setFavorites((prev) => (prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]))
+  }
+
+  // Filter products
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch =
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.description.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesCategory = categoryFilter === "all" || product.category === categoryFilter
+    return matchesSearch && matchesCategory
+  })
+
+  // Get unique categories
+  const categories = ["all", ...new Set(products.map((p) => p.category))]
+
+  // Render product cards
+  const renderProducts = () => (
+    <Box>
+      {/* Search and Filter Controls */}
+      <Box sx={{ mb: 3, display: "flex", gap: 2, flexWrap: "wrap" }}>
+        <TextField
+          placeholder="Search products..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          sx={{ flexGrow: 1, minWidth: 200 }}
+        />
+        <TextField
+          select
+          label="Category"
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          sx={{ minWidth: 150 }}
+        >
+          {categories.map((category) => (
+            <MenuItem key={category} value={category}>
+              {category === "all" ? "All Categories" : category}
+            </MenuItem>
           ))}
-        </Box>
+        </TextField>
       </Box>
 
-      {/* Cart Section */}
-      {cart.length > 0 && (
-        <Box sx={{ mb: 5 }}>
-          <Typography variant="h5" sx={{ mb: 2 }}>Your Cart</Typography>
-          <Box>
-            {cart.map((item) => (
-              <Box key={item.id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #ccc', py: 1 }}>
-                <Typography>{item.name} - {item.price}</Typography>
-                <Button variant="outlined" color="error" size="small" startIcon={<Delete />} onClick={() => handleRemoveFromCart(item.id)}>Remove</Button>
+      <Grid container spacing={3}>
+        {filteredProducts.map((product) => (
+          <Grid item xs={12} sm={6} md={4} key={product._id}>
+            <Card
+              sx={{
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                transition: "transform 0.2s, box-shadow 0.2s",
+                "&:hover": {
+                  transform: "translateY(-4px)",
+                  boxShadow: 4,
+                },
+              }}
+            >
+              <Box sx={{ position: "relative" }}>
+                <CardMedia
+                  component="img"
+                  height="200"
+                  image={product.imageUrl || "/placeholder.svg?height=200&width=300"}
+                  alt={product.name}
+                  sx={{ objectFit: "contain", p: 1 }}
+                />
+                <IconButton
+                  sx={{
+                    position: "absolute",
+                    top: 8,
+                    right: 8,
+                    bgcolor: "background.paper",
+                    "&:hover": { bgcolor: "background.paper" },
+                  }}
+                  onClick={() => toggleFavorite(product._id)}
+                >
+                  {favorites.includes(product._id) ? <Favorite color="error" /> : <FavoriteBorder />}
+                </IconButton>
+                <Chip
+                  label={product.category}
+                  size="small"
+                  color="primary"
+                  sx={{ position: "absolute", top: 8, left: 8 }}
+                />
               </Box>
-            ))}
-          </Box>
+
+              <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>
+                <Typography gutterBottom variant="h6" component="div" sx={{ fontWeight: 600 }}>
+                  {product.name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, flexGrow: 1 }}>
+                  {product.description}
+                </Typography>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                  <Typography variant="h6" color="primary" sx={{ fontWeight: 700 }}>
+                    ${product.price.toFixed(2)}
+                  </Typography>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Visibility fontSize="small" color="action" />
+                    <Typography variant="body2" color="text.secondary">
+                      {product.viewCount || 0}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                  <Chip
+                    label={product.stock > 0 ? `${product.stock} in stock` : "Out of Stock"}
+                    size="small"
+                    color={product.stock > 0 ? "success" : "error"}
+                    variant="outlined"
+                  />
+                  <Rating value={4.5} precision={0.5} size="small" readOnly />
+                </Box>
+              </CardContent>
+
+              <Box sx={{ p: 2, pt: 0 }}>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  disabled={product.stock === 0}
+                  onClick={() => handleAddToCart(product._id)}
+                  startIcon={<ShoppingCart />}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: "none",
+                    fontWeight: 600,
+                  }}
+                >
+                  {product.stock === 0 ? "Out of Stock" : "Add to Cart"}
+                </Button>
+              </Box>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+      {filteredProducts.length === 0 && (
+        <Box sx={{ textAlign: "center", py: 8 }}>
+          <Computer sx={{ fontSize: 80, color: "text.disabled", mb: 2 }} />
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            No products found
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Try adjusting your search or filter criteria
+          </Typography>
         </Box>
       )}
+    </Box>
+  )
 
-      {/* Tabs for Queries */}
-      <Tabs value={activeTab} onChange={handleTabChange} sx={{ mb: 3 }}>
-        <Tab label="Submit Query" icon={<Send />} />
-        <Tab label="Query Status" icon={<Pending />} />
-      </Tabs>
-
-      <Box sx={{ p: 2 }}>
-        {activeTab === 0 && (
-          <Box component="form" onSubmit={handleSubmitQuery} sx={{ maxWidth: 600, mx: 'auto' }}>
-            <Typography variant="h6">Submit a New Query</Typography>
-            {!currentUser && (
-              <>
-                <TextField fullWidth label="Your Name" name="name" value={queryForm.name} onChange={handleInputChange} error={!!formErrors.name} helperText={formErrors.name} margin="normal" required />
-                <TextField fullWidth label="Email Address" name="email" type="email" value={queryForm.email} onChange={handleInputChange} error={!!formErrors.email} helperText={formErrors.email} margin="normal" required />
-              </>
-            )}
-            {currentUser && <Typography sx={{ mb: 2 }}>Submitting as: {currentUser.name} ({currentUser.email})</Typography>}
-            <TextField fullWidth label="Your Message" name="message" value={queryForm.message} onChange={handleInputChange} error={!!formErrors.message} helperText={formErrors.message} margin="normal" multiline rows={4} required />
-            <Button type="submit" variant="contained" startIcon={loading.submit ? <CircularProgress size={20} /> : <Send />} sx={{ mt: 2 }} disabled={loading.submit} fullWidth>
-              {loading.submit ? 'Submitting...' : 'Submit Query'}
+  // Render cart
+  const renderCart = () => (
+    <Grid container spacing={3}>
+      <Grid item xs={12} md={8}>
+        {/* Debug info - remove in production */}
+        {process.env.NODE_ENV === "development" && (
+          <Box sx={{ mb: 2, p: 2, bgcolor: "grey.100", borderRadius: 1 }}>
+            <Typography variant="caption">
+              Debug: Cart items: {cart?.items?.length || 0}, Total: ${calculateCartTotal().toFixed(2)}, Token:{" "}
+              {localStorage.getItem("token") ? "Present" : "Missing"}
+            </Typography>
+          </Box>
+        )}
+        {cart && cart.items && cart.items.length > 0 ? (
+          <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
+            <Table>
+              <TableHead>
+                <TableRow sx={{ bgcolor: "background.default" }}>
+                  <TableCell sx={{ fontWeight: 600 }}>Product</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>
+                    Price
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>
+                    Quantity
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600 }}>
+                    Total
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600 }}>
+                    Action
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {cart.items.map((item) => (
+                  <TableRow key={item._id} hover>
+                    <TableCell>
+                      <Box sx={{ display: "flex", alignItems: "center" }}>
+                        <Avatar src={item.product?.imageUrl} sx={{ mr: 2, width: 50, height: 50 }} variant="rounded">
+                          <Computer />
+                        </Avatar>
+                        <Box>
+                          <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                            {item.product?.name}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {item.product?.category}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                        ${item.product?.price?.toFixed(2)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <IconButton
+                          size="small"
+                          onClick={() => updateCartItem(item._id, item.quantity - 1)}
+                          disabled={item.quantity <= 1}
+                        >
+                          <Remove />
+                        </IconButton>
+                        <Typography variant="body1" sx={{ mx: 2, minWidth: 20, textAlign: "center" }}>
+                          {item.quantity}
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          onClick={() => updateCartItem(item._id, item.quantity + 1)}
+                          disabled={item.quantity >= item.product?.stock}
+                        >
+                          <Add />
+                        </IconButton>
+                      </Box>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                        ${(item.product?.price * item.quantity).toFixed(2)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <IconButton onClick={() => handleRemoveFromCart(item._id)} color="error">
+                        <Delete />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        ) : (
+          <Card sx={{ textAlign: "center", p: 6 }}>
+            <ShoppingCart sx={{ fontSize: 80, color: "text.disabled", mb: 2 }} />
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              Your cart is empty
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Browse our products and add items to your cart
+            </Typography>
+            <Button variant="contained" onClick={() => setActiveTab(0)} startIcon={<Computer />}>
+              Browse Products
             </Button>
-          </Box>
+          </Card>
         )}
+      </Grid>
 
-        {activeTab === 1 && (
-          <Box>
-            <Typography variant="h6">Your Query Status</Typography>
-            {loading.fetch ? (
-              <Box display="flex" justifyContent="center" p={4}><CircularProgress /></Box>
-            ) : submittedQueries.length === 0 ? (
-              <Alert severity="info">You haven't submitted any queries yet.</Alert>
-            ) : (
-              <TableContainer component={Paper} sx={{ mt: 2 }}>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Date</TableCell>
-                      <TableCell>Message</TableCell>
-                      <TableCell>Status</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {submittedQueries.map((query) => (
-                      <TableRow key={query._id}>
-                        <TableCell>{formatDate(query.date)}</TableCell>
-                        <TableCell>{query.message}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={query.status}
-                            color={query.status === 'complete' ? 'success' : 'warning'}
-                            icon={query.status === 'complete' ? <CheckCircle /> : <Pending />}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
+      <Grid item xs={12} md={4}>
+        <Card sx={{ borderRadius: 2 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+              Order Summary
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+
+            <List sx={{ py: 0 }}>
+              {cart &&
+                cart.items &&
+                cart.items.map((item) => (
+                  <ListItem key={item._id} sx={{ py: 1, px: 0 }}>
+                    <ListItemText
+                      primary={`${item.product?.name} × ${item.quantity}`}
+                      secondary={item.product?.category}
+                    />
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      ${(item.product?.price * item.quantity).toFixed(2)}
+                    </Typography>
+                  </ListItem>
+                ))}
+
+              <Divider sx={{ my: 2 }} />
+
+              <ListItem sx={{ py: 1, px: 0 }}>
+                <ListItemText primary="Subtotal" />
+                <Typography variant="body1">${calculateCartTotal().toFixed(2)}</Typography>
+              </ListItem>
+              <ListItem sx={{ py: 1, px: 0 }}>
+                <ListItemText primary="Shipping" />
+                <Typography variant="body1">Free</Typography>
+              </ListItem>
+              <ListItem sx={{ py: 1, px: 0 }}>
+                <ListItemText primary="Tax" />
+                <Typography variant="body1">$0.00</Typography>
+              </ListItem>
+
+              <Divider sx={{ my: 2 }} />
+
+              <ListItem sx={{ py: 1, px: 0 }}>
+                <ListItemText
+                  primary={
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                      Total
+                    </Typography>
+                  }
+                />
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  ${calculateCartTotal().toFixed(2)}
+                </Typography>
+              </ListItem>
+            </List>
+
+            <TextField
+              fullWidth
+              label="Shipping Address"
+              value={shippingInfo.address}
+              onChange={(e) => setShippingInfo({ ...shippingInfo, address: e.target.value })}
+              margin="normal"
+              required
+              multiline
+              rows={3}
+              sx={{ mb: 2 }}
+              error={!shippingInfo.address.trim() && shippingInfo.address !== ""}
+              helperText={
+                !shippingInfo.address.trim() && shippingInfo.address !== "" ? "Shipping address is required" : ""
+              }
+              placeholder="Enter your complete shipping address including street, city, state, and ZIP code"
+            />
+
+            <TextField
+              select
+              fullWidth
+              label="Payment Method"
+              value={shippingInfo.paymentMethod}
+              onChange={(e) => setShippingInfo({ ...shippingInfo, paymentMethod: e.target.value })}
+              margin="normal"
+              required
+              sx={{ mb: 3 }}
+            >
+              {["Credit Card", "PayPal", "Bank Transfer"].map((method) => (
+                <MenuItem key={method} value={method}>
+                  {method}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <Button
+              fullWidth
+              variant="contained"
+              size="large"
+              disabled={loading || !cart || !cart.items || cart.items.length === 0 || !shippingInfo.address.trim()}
+              onClick={handlePlaceOrder}
+              startIcon={loading ? <CircularProgress size={20} /> : <Payment />}
+              sx={{
+                borderRadius: 2,
+                py: 1.5,
+                textTransform: "none",
+                fontWeight: 600,
+              }}
+            >
+              {loading ? "Placing Order..." : "Place Order"}
+            </Button>
+          </CardContent>
+        </Card>
+      </Grid>
+    </Grid>
+  )
+
+  // Render orders
+  const renderOrders = () => (
+    <Box>
+      {orders.length > 0 ? (
+        <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
+          <Table>
+            <TableHead>
+              <TableRow sx={{ bgcolor: "background.default" }}>
+                <TableCell sx={{ fontWeight: 600 }}>Order ID</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Items</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 600 }}>
+                  Total
+                </TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {orders.map((order) => (
+                <TableRow key={order._id} hover>
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
+                      #{order._id.substring(0, 8)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">{new Date(order.createdAt).toLocaleDateString()}</Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Box>
+                      {order.items.slice(0, 2).map((item, idx) => (
+                        <Typography key={idx} variant="body2">
+                          {item.product?.name} × {item.quantity}
+                        </Typography>
+                      ))}
+                      {order.items.length > 2 && (
+                        <Typography variant="body2" color="text.secondary">
+                          +{order.items.length - 2} more items
+                        </Typography>
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                      ${order.totalAmount.toFixed(2)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={order.status}
+                      size="small"
+                      color={
+                        order.status === "Delivered"
+                          ? "success"
+                          : order.status === "Cancelled"
+                            ? "error"
+                            : order.status === "Shipped"
+                              ? "info"
+                              : "warning"
+                      }
+                      icon={order.status === "Delivered" ? <CheckCircle /> : undefined}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      ) : (
+        <Card sx={{ textAlign: "center", p: 6 }}>
+          <History sx={{ fontSize: 80, color: "text.disabled", mb: 2 }} />
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            No orders yet
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            When you place orders, they will appear here
+          </Typography>
+          <Button variant="contained" onClick={() => setActiveTab(0)} startIcon={<Computer />}>
+            Browse Products
+          </Button>
+        </Card>
+      )}
+    </Box>
+  )
+
+  // Render queries
+  const renderQueries = () => (
+    <Grid container spacing={3}>
+      <Grid item xs={12} md={7}>
+        <Card sx={{ mb: 3, borderRadius: 2 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+              Submit a New Query
+            </Typography>
+            <TextField
+              fullWidth
+              label="Subject"
+              value={newQuery.subject}
+              onChange={(e) => setNewQuery({ ...newQuery, subject: e.target.value })}
+              margin="normal"
+              required
+            />
+            <TextField
+              fullWidth
+              label="Message"
+              value={newQuery.message}
+              onChange={(e) => setNewQuery({ ...newQuery, message: e.target.value })}
+              margin="normal"
+              required
+              multiline
+              rows={4}
+            />
+            <Button
+              variant="contained"
+              onClick={handleQuerySubmit}
+              sx={{ mt: 2 }}
+              startIcon={<Support />}
+              disabled={!newQuery.subject || !newQuery.message}
+            >
+              Submit Query
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+          Your Recent Queries
+        </Typography>
+
+        {queries.length === 0 ? (
+          <Card sx={{ textAlign: "center", p: 4 }}>
+            <Support sx={{ fontSize: 60, color: "text.disabled", mb: 2 }} />
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              No queries submitted yet
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Submit your first query using the form above
+            </Typography>
+          </Card>
+        ) : (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {queries.map((query) => (
+              <Card key={query._id} sx={{ borderRadius: 2 }}>
+                <CardContent>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      {query.subject}
+                    </Typography>
+                    <Chip
+                      label={query.status}
+                      size="small"
+                      color={
+                        query.status === "Resolved" ? "success" : query.status === "In Progress" ? "warning" : "info"
+                      }
+                    />
+                  </Box>
+
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    {new Date(query.createdAt).toLocaleString()}
+                  </Typography>
+
+                  <Typography variant="body1" sx={{ mb: 2 }}>
+                    {query.message}
+                  </Typography>
+
+                  {query.response && (
+                    <Box
+                      sx={{
+                        mt: 2,
+                        p: 2,
+                        bgcolor: "success.light",
+                        borderRadius: 1,
+                        border: "1px solid",
+                        borderColor: "success.main",
+                      }}
+                    >
+                      <Typography variant="subtitle2" color="success.dark" sx={{ fontWeight: 600, mb: 1 }}>
+                        Response from Support:
+                      </Typography>
+                      <Typography variant="body1">{query.response}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
+                        {new Date(query.updatedAt).toLocaleString()}
+                      </Typography>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
           </Box>
         )}
+      </Grid>
+
+      <Grid item xs={12} md={5}>
+        <Card sx={{ borderRadius: 2 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+              Support Information
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+
+            <Typography variant="body1" paragraph>
+              Our support team is available to help you with any questions or issues you may have.
+            </Typography>
+
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                Business Hours:
+              </Typography>
+              <Typography variant="body2">Monday-Friday: 9AM - 6PM (EST)</Typography>
+              <Typography variant="body2">Saturday: 10AM - 4PM (EST)</Typography>
+              <Typography variant="body2">Sunday: Closed</Typography>
+            </Box>
+
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                Contact:
+              </Typography>
+              <Typography variant="body2">Email: support@techstore.com</Typography>
+              <Typography variant="body2">Phone: +1 (800) 123-4567</Typography>
+            </Box>
+
+            <Box sx={{ p: 2, bgcolor: "info.light", borderRadius: 1 }}>
+              <Typography variant="body2" color="info.dark">
+                <strong>Average response time:</strong> 24-48 hours
+              </Typography>
+            </Box>
+          </CardContent>
+        </Card>
+      </Grid>
+    </Grid>
+  )
+
+  return (
+    <Container maxWidth="xl" sx={{ py: 4 }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
+          Client Dashboard
+        </Typography>
+        <Button
+          variant="outlined"
+          color="primary"
+          onClick={() => {
+            localStorage.removeItem("token")
+            navigate("/login")
+          }}
+        >
+          Logout
+        </Button>
       </Box>
 
-      <Snackbar
-        open={notification.open}
-        autoHideDuration={6000}
-        onClose={handleCloseNotification}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      <Tabs
+        value={activeTab}
+        onChange={handleTabChange}
+        sx={{
+          mb: 3,
+          "& .MuiTabs-indicator": {
+            height: 4,
+            borderRadius: "4px 4px 0 0",
+          },
+        }}
       >
-        <Alert severity={notification.severity} onClose={handleCloseNotification}>
-          {notification.message}
+        <Tab
+          label={
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Computer />
+              Products
+            </Box>
+          }
+        />
+        <Tab
+          label={
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Badge badgeContent={cart?.items?.length || 0} color="primary">
+                <ShoppingCart />
+              </Badge>
+              Shopping Cart
+            </Box>
+          }
+        />
+        <Tab
+          label={
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <History />
+              Orders
+            </Box>
+          }
+        />
+        <Tab
+          label={
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Badge badgeContent={queries.filter((q) => q.status !== "Resolved").length} color="error">
+                <Support />
+              </Badge>
+              Support
+            </Box>
+          }
+        />
+      </Tabs>
+
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}>
+          <CircularProgress size={60} />
+        </Box>
+      ) : (
+        <>
+          {activeTab === 0 && renderProducts()}
+          {activeTab === 1 && renderCart()}
+          {activeTab === 2 && renderOrders()}
+          {activeTab === 3 && renderQueries()}
+        </>
+      )}
+
+      <Snackbar open={!!error} autoHideDuration={6000} onClose={handleCloseAlert}>
+        <Alert onClose={handleCloseAlert} severity="error" sx={{ width: "100%" }}>
+          {error}
         </Alert>
       </Snackbar>
-    </Box>
-  );
-};
 
-export default ClientDashboard;
+      <Snackbar open={!!success} autoHideDuration={3000} onClose={handleCloseAlert}>
+        <Alert onClose={handleCloseAlert} severity="success" sx={{ width: "100%" }}>
+          {success}
+        </Alert>
+      </Snackbar>
+    </Container>
+  )
+}
+
+export default Dashboard

@@ -40,8 +40,11 @@ const Login = () => {
   const validateForm = () => {
     const newErrors = {};
     if (!formData.email.trim()) newErrors.email = 'Email is required';
+    else if (!/^\S+@\S+\.\S+$/.test(formData.email)) newErrors.email = 'Email is invalid';
+    
     if (!formData.password) newErrors.password = 'Password is required';
     if (!formData.role) newErrors.role = 'Role is required';
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -56,35 +59,26 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post('https://cloud-2lxn.onrender.com', {
+      const response = await axios.post('http://localhost:5000/api/auth/login', {
         email: formData.email,
         password: formData.password,
         role: formData.role
       });
 
-      localStorage.setItem('token', response.data.token);
-      
-      // Use selected role to navigate
-      const role = formData.role;
-
-      if (role === 'Client') {
-        navigate('/client/dashboard');
-      } else if (role === 'Developer') {
-        navigate('/developer/dashboard');
-      } else if (role === 'Partner') {
-        navigate('/partner/dashboard');
-      } else if (role === 'Finance') {
-        navigate('/finance/dashboard');
-      } else if (role === 'Sales') {
-        navigate('/sales/dashboard');
-      } else if (role === 'Investor') {
-        navigate('/investor/dashboard');
+      // Store token and rememberMe preference
+      if (formData.rememberMe) {
+        localStorage.setItem('token', response.data.token);
       } else {
-        navigate('/');
+        sessionStorage.setItem('token', response.data.token);
       }
 
+      // Redirect to role-specific dashboard
+      navigate(`/${formData.role.toLowerCase()}/dashboard`);
+
     } catch (err) {
-      setApiError(err.response?.data?.message || 'Login failed.');
+      const errorMessage = err.response?.data?.message || 'Login failed.';
+      setApiError(errorMessage);
+      console.error('Login error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -97,7 +91,8 @@ const Login = () => {
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '100vh',
-        p: 2
+        p: 2,
+        backgroundColor: '#f5f5f5'
       }}
     >
       <Box
@@ -105,14 +100,19 @@ const Login = () => {
         onSubmit={handleSubmit}
         sx={{
           width: '100%',
-          maxWidth: 400,
+          maxWidth: 450,
           p: 4,
           boxShadow: 3,
-          borderRadius: 2
+          borderRadius: 2,
+          backgroundColor: 'white'
         }}
+        noValidate
       >
-        <Typography variant="h4" component="h1" gutterBottom align="center">
+        <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ fontWeight: 'bold' }}>
           Log In
+        </Typography>
+        <Typography variant="body1" align="center" color="textSecondary" sx={{ mb: 3 }}>
+          Welcome back! Please enter your details
         </Typography>
 
         {apiError && (
@@ -136,6 +136,7 @@ const Login = () => {
           error={!!errors.email}
           helperText={errors.email}
           required
+          autoComplete="email"
         />
 
         <TextField
@@ -149,6 +150,7 @@ const Login = () => {
           error={!!errors.password}
           helperText={errors.password}
           required
+          autoComplete="current-password"
         />
 
         <FormControl fullWidth margin="normal" error={!!errors.role} required>
@@ -159,6 +161,7 @@ const Login = () => {
             value={formData.role}
             onChange={handleChange}
             label="Select Your Role"
+            sx={{ textAlign: 'left' }}
           >
             <MenuItem value="Client">Client</MenuItem>
             <MenuItem value="Developer">Developer</MenuItem>
@@ -168,41 +171,42 @@ const Login = () => {
             <MenuItem value="Investor">Investor</MenuItem>
           </Select>
           {errors.role && (
-            <Typography color="error" variant="body2">
+            <Typography color="error" variant="body2" sx={{ mt: 1 }}>
               {errors.role}
             </Typography>
           )}
         </FormControl>
 
-        <FormControlLabel
-          control={
-            <Checkbox
-              name="rememberMe"
-              checked={formData.rememberMe}
-              onChange={handleChange}
-              color="primary"
-            />
-          }
-          label="Remember me"
-          sx={{ mt: 2 }}
-        />
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                name="rememberMe"
+                checked={formData.rememberMe}
+                onChange={handleChange}
+                color="primary"
+              />
+            }
+            label="Remember me"
+          />
+          <Link href="/forgot-password" variant="body2">
+            Forgot password?
+          </Link>
+        </Box>
 
-        {isLoading ? (
-          <CircularProgress size={24} />
-        ) : (
-          <Button
-            type="submit"
-            variant="contained"
-            fullWidth
-            size="large"
-            sx={{ mt: 3, mb: 2 }}
-          >
-            Log In
-          </Button>
-        )}
+        <Button
+          type="submit"
+          variant="contained"
+          fullWidth
+          size="large"
+          sx={{ mt: 3, mb: 2, py: 1.5 }}
+          disabled={isLoading}
+        >
+          {isLoading ? <CircularProgress size={24} /> : 'Log In'}
+        </Button>
 
-        <Typography variant="body2" align="center">
-          Don't have an account? <Link href="/signup">Sign Up</Link>
+        <Typography variant="body2" align="center" sx={{ mt: 2 }}>
+          Don't have an account? <Link href="/signup" fontWeight="bold">Sign Up</Link>
         </Typography>
       </Box>
     </Box>

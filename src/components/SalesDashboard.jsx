@@ -3,17 +3,48 @@ import {
   Tabs, Tab, Box, Typography, Button, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Paper, IconButton, TextField, Dialog, DialogActions,
   DialogContent, DialogTitle, CircularProgress, Alert, Snackbar, styled,
-  Card, CardContent, Grid, Avatar, Divider, Badge, Chip, Tooltip, Menu, MenuItem
+  Card, CardContent, Grid, Avatar, Divider, Badge, Chip, Tooltip, Menu, MenuItem,
+  Select, FormControl, InputLabel, FormHelperText, LinearProgress
 } from '@mui/material';
 import { 
-  Add, Edit, Delete, CheckCircle, ShoppingCart, 
-  QueryBuilder, Email, AttachMoney, BarChart, 
-  Person, CalendarToday, FilterList, MoreVert 
+  Add, Edit, Delete, ShoppingCart, 
+  QueryBuilder, Email, AttachMoney, 
+  Person, CalendarToday, FilterList, MoreVert,
+  Inventory, Reply, TrendingUp, People, Assessment
 } from '@mui/icons-material';
-import api from '../api';
-import { useAuth } from '../context/AuthContext';
-import { DoughnutChart, SalesTrendChart } from './charts';
-import { formatCurrency, formatDate } from '../utils/formatters';
+import { LineChart, BarChart, PieChart } from '@mui/x-charts';
+import axios from 'axios';
+
+const API_BASE_URL = 'http://localhost:5000/api';
+
+// Create axios instance with auth
+const api = axios.create({
+  baseURL: API_BASE_URL,
+});
+
+// Add auth token to requests
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD'
+  }).format(amount);
+};
+
+const formatDate = (date) => {
+  return new Date(date).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
 
 const StyledTableContainer = styled(TableContainer)(({ theme }) => ({
   marginTop: theme.spacing(2),
@@ -25,10 +56,10 @@ const StyledTableContainer = styled(TableContainer)(({ theme }) => ({
 const StatusBadge = styled(Box)(({ status, theme }) => ({
   display: 'flex',
   alignItems: 'center',
-  color: status === 'answered' ? theme.palette.success.main : theme.palette.warning.main,
+  color: status === 'Resolved' ? theme.palette.success.main : theme.palette.warning.main,
 }));
 
-const SalesCard = styled(Card)(({ theme }) => ({
+const DashboardCard = styled(Card)(({ theme }) => ({
   borderRadius: 12,
   boxShadow: theme.shadows[2],
   transition: 'transform 0.3s, box-shadow 0.3s',
@@ -40,175 +71,168 @@ const SalesCard = styled(Card)(({ theme }) => ({
 
 const SalesDashboard = () => {
   const [activeTab, setActiveTab] = useState(0);
+  const [products, setProducts] = useState([]);
   const [sales, setSales] = useState([]);
   const [queries, setQueries] = useState([]);
-  const [autoResponses, setAutoResponses] = useState([]);
-  const [openSaleDialog, setOpenSaleDialog] = useState(false);
-  const [currentSale, setCurrentSale] = useState({ 
-    _id: null, 
-    product: '', 
-    quantity: 1, 
-    price: 0, 
-    date: new Date().toISOString().split('T')[0],
-    category: 'electronics'
+  const [clients, setClients] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [dashboardStats, setDashboardStats] = useState({});
+  const [openProductDialog, setOpenProductDialog] = useState(false);
+  const [openQueryDialog, setOpenQueryDialog] = useState(false);
+  const [currentProduct, setCurrentProduct] = useState({
+    _id: null,
+    name: '',
+    description: '',
+    price: 0,
+    cost: 0,
+    category: 'CPU',
+    stock: 0,
+    minStock: 5,
+    imageUrl: ''
   });
-  const [newQuery, setNewQuery] = useState('');
-  const [newClientName, setNewClientName] = useState('');
+  const [currentQuery, setCurrentQuery] = useState({
+    _id: null,
+    response: ''
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [filter, setFilter] = useState('all');
   const [anchorEl, setAnchorEl] = useState(null);
-  const { currentUser, logout, refreshToken } = useAuth();
+  const [salesTrend, setSalesTrend] = useState([]);
 
-  // Sales statistics
-  const totalSales = sales.reduce((sum, sale) => sum + (sale.price * sale.quantity), 0);
-  const totalItemsSold = sales.reduce((sum, sale) => sum + sale.quantity, 0);
-  const avgSaleValue = sales.length > 0 ? totalSales / sales.length : 0;
-  const pendingQueries = queries.filter(q => q.status !== 'answered').length;
+  // Dashboard statistics
+  const totalSalesValue = sales.reduce((sum, sale) => sum + sale.total, 0);
+  const totalProductsSold = sales.reduce((sum, sale) => sum + sale.quantity, 0);
+  const lowStockProducts = products.filter(p => p.stock <= p.minStock).length;
+  const pendingQueries = queries.filter(q => q.status !== 'Resolved').length;
 
-  const fetchWithAuth = useCallback(async (url) => {
+  const fetchData = useCallback(async (tab) => {
+    setLoading(true);
+    setError(null);
     try {
-      const response = await api.get(url);
-      return response;
-    } catch (err) {
-      if (err.response?.status === 401) {
-        try {
-          await refreshToken();
-          return await api.get(url);
-        } catch (refreshError) {
-          logout();
-          throw new Error('Session expired. Please login again.');
-        }
-      }
-      throw err;
-    }
-  }, [logout, refreshToken]);
-
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      if (activeTab === 0) {
-        const response = await api.get('https://cloud-2lxn.onrender.com');
-        setSales(response.data);
-      } else if (activeTab === 1) {
-        const response = await api.get('https://cloud-2lxn.onrender.com');
-        setQueries(response.data);
-        
-        const responses = response.data
-          .filter(query => query.autoReply)
-          .map(query => ({
-            _id: query._id,
-            query: query.message,
-            response: query.autoReply,
-            date: query.date
-          }));
-        setAutoResponses(responses);
+      if (tab === 0) {
+        // Dashboard Overview
+        const [dashboardRes, salesTrendRes] = await Promise.all([
+          api.get('/analytics/dashboard'),
+          api.get('/analytics/sales')
+        ]);
+        setDashboardStats(dashboardRes.data);
+        setSalesTrend(salesTrendRes.data);
+      } else if (tab === 1) {
+        // Products
+        const productsRes = await api.get('/products');
+        setProducts(productsRes.data);
+      } else if (tab === 2) {
+        // Sales & Orders
+        const [salesRes, ordersRes] = await Promise.all([
+          api.get('/sales'),
+          api.get('/orders')
+        ]);
+        setSales(salesRes.data);
+        setOrders(ordersRes.data);
+      } else if (tab === 3) {
+        // Client Performance
+        const clientsRes = await api.get('/analytics/clients');
+        setClients(clientsRes.data);
+      } else if (tab === 4) {
+        // Customer Queries
+        const queriesRes = await api.get('/queries');
+        setQueries(queriesRes.data);
       }
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.message || 'Failed to fetch data');
     } finally {
       setLoading(false);
     }
-  }, [activeTab]);
+  }, []);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchData(activeTab);
+  }, [activeTab, fetchData]);
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
   };
 
-  const handleAddSale = () => {
-    setCurrentSale({ 
-      _id: null, 
-      product: '', 
-      quantity: 1, 
-      price: 0, 
-      date: new Date().toISOString().split('T')[0],
-      category: 'electronics'
+  // Product Management
+  const handleAddProduct = () => {
+    setCurrentProduct({
+      _id: null,
+      name: '',
+      description: '',
+      price: 0,
+      cost: 0,
+      category: 'CPU',
+      stock: 0,
+      minStock: 5,
+      imageUrl: ''
     });
-    setOpenSaleDialog(true);
+    setOpenProductDialog(true);
   };
 
-  const handleEditSale = (sale) => {
-    setCurrentSale({
-      ...sale,
-      date: sale.date.split('T')[0] || sale.date
-    });
-    setOpenSaleDialog(true);
+  const handleEditProduct = (product) => {
+    setCurrentProduct(product);
+    setOpenProductDialog(true);
   };
 
-  const handleDeleteSale = async (id) => {
+  const handleDeleteProduct = async (id) => {
     try {
-      await api.delete(`/api/sales/${id}`);
-      setSales(sales.filter(sale => sale._id !== id));
-      setSuccess('Sale deleted successfully');
-      setTimeout(() => setSuccess(null), 3000);
+      await api.delete(`/products/${id}`);
+      setProducts(products.filter(p => p._id !== id));
+      setSuccess('Product deleted successfully');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete sale');
+      setError(err.response?.data?.message || 'Failed to delete product');
     }
   };
 
-  const handleSaveSale = async () => {
+  const handleSaveProduct = async () => {
     try {
       setLoading(true);
-      setError(null);
       
-      const saleData = {
-        product: currentSale.product,
-        quantity: currentSale.quantity,
-        price: currentSale.price,
-        date: currentSale.date,
-        category: currentSale.category
-      };
-
-      if (currentSale._id) {
-        const response = await api.put(`/api/sales/${currentSale._id}`, saleData);
-        setSales(sales.map(sale => sale._id === currentSale._id ? response.data : sale));
-        setSuccess('Sale updated successfully');
+      if (currentProduct._id) {
+        const response = await api.put(`/products/${currentProduct._id}`, currentProduct);
+        setProducts(products.map(p => p._id === currentProduct._id ? response.data : p));
+        setSuccess('Product updated successfully');
       } else {
-        const response = await api.post('/api/sales', saleData);
-        setSales([...sales, response.data]);
-        setSuccess('Sale added successfully');
+        const response = await api.post('/products', currentProduct);
+        setProducts([...products, response.data]);
+        setSuccess('Product added successfully');
       }
-      setTimeout(() => setSuccess(null), 3000);
-      setOpenSaleDialog(false);
+      
+      setOpenProductDialog(false);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save sale');
+      setError(err.response?.data?.message || 'Failed to save product');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddQuery = async () => {
-    if (!newClientName || !newQuery) {
-      setError('Client name and question are required');
-      return;
-    }
+  // Query Management
+  const handleRespondToQuery = (query) => {
+    setCurrentQuery({
+      _id: query._id,
+      response: query.response || ''
+    });
+    setOpenQueryDialog(true);
+  };
 
+  const handleSaveResponse = async () => {
     try {
       setLoading(true);
-      setError(null);
       
-      await api.post('/api/queries', {
-        name: newClientName,
-        email: `${newClientName.toLowerCase().replace(/\s+/g, '')}@example.com`,
-        message: newQuery
+      const response = await api.put(`/queries/${currentQuery._id}/respond`, {
+        response: currentQuery.response
       });
-
-      const response = await api.get('https://cloud-2lxn.onrender.com');
-      setQueries(response.data);
       
-      setNewQuery('');
-      setNewClientName('');
-      setSuccess('Query submitted successfully!');
-      setTimeout(() => setSuccess(null), 3000);
+      setQueries(queries.map(q => 
+        q._id === currentQuery._id ? response.data : q
+      ));
+      
+      setSuccess('Response submitted successfully');
+      setOpenQueryDialog(false);
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.message || 'Failed to submit response');
     } finally {
       setLoading(false);
     }
@@ -232,25 +256,31 @@ const SalesDashboard = () => {
     handleMenuClose();
   };
 
-  const filteredSales = filter === 'all' 
-    ? sales 
-    : sales.filter(sale => sale.category === filter);
+  const filteredProducts = filter === 'all' 
+    ? products 
+    : products.filter(p => p.category === filter);
 
-  const salesByCategory = sales.reduce((acc, sale) => {
-    acc[sale.category] = (acc[sale.category] || 0) + (sale.price * sale.quantity);
-    return acc;
-  }, {});
+  // Prepare chart data
+  const salesChartData = salesTrend.map(item => ({
+    date: item._id,
+    total: item.totalSales
+  }));
+
+  const stockChartData = [
+    { label: 'In Stock', value: products.reduce((sum, p) => sum + p.stock, 0) },
+    { label: 'Low Stock', value: products.filter(p => p.stock <= p.minStock).length }
+  ];
 
   return (
     <Box sx={{ width: '100%', p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" color="primary" sx={{ fontWeight: 700 }}>
-          Sales Dashboard
+          Sales & Admin Dashboard
         </Typography>
         <Box>
           <Button 
             variant="contained" 
-            startIcon={<BarChart />}
+            startIcon={<Assessment />}
             sx={{ mr: 2 }}
           >
             Generate Report
@@ -264,138 +294,6 @@ const SalesDashboard = () => {
         </Box>
       </Box>
 
-      {/* Summary Cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={3}>
-          <SalesCard>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Total Sales
-                  </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    {formatCurrency(totalSales)}
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: 'primary.main', width: 56, height: 56 }}>
-                  <AttachMoney fontSize="large" />
-                </Avatar>
-              </Box>
-              <Divider sx={{ my: 2 }} />
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Typography variant="body2" color="success.main" sx={{ mr: 1 }}>
-                  +12% from last month
-                </Typography>
-              </Box>
-            </CardContent>
-          </SalesCard>
-        </Grid>
-        <Grid item xs={12} md={3}>
-          <SalesCard>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Items Sold
-                  </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    {totalItemsSold}
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: 'secondary.main', width: 56, height: 56 }}>
-                  <ShoppingCart fontSize="large" />
-                </Avatar>
-              </Box>
-              <Divider sx={{ my: 2 }} />
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Typography variant="body2" color="success.main" sx={{ mr: 1 }}>
-                  +8% from last month
-                </Typography>
-              </Box>
-            </CardContent>
-          </SalesCard>
-        </Grid>
-        <Grid item xs={12} md={3}>
-          <SalesCard>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Avg. Sale Value
-                  </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    {formatCurrency(avgSaleValue)}
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: 'warning.main', width: 56, height: 56 }}>
-                  <BarChart fontSize="large" />
-                </Avatar>
-              </Box>
-              <Divider sx={{ my: 2 }} />
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Typography variant="body2" color="error.main" sx={{ mr: 1 }}>
-                  -2% from last month
-                </Typography>
-              </Box>
-            </CardContent>
-          </SalesCard>
-        </Grid>
-        <Grid item xs={12} md={3}>
-          <SalesCard>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Pending Queries
-                  </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    {pendingQueries}
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: 'error.main', width: 56, height: 56 }}>
-                  <QueryBuilder fontSize="large" />
-                </Avatar>
-              </Box>
-              <Divider sx={{ my: 2 }} />
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Typography variant="body2" color="success.main" sx={{ mr: 1 }}>
-                  +5% from last month
-                </Typography>
-              </Box>
-            </CardContent>
-          </SalesCard>
-        </Grid>
-      </Grid>
-
-      {/* Charts Row */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={6}>
-          <SalesCard>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Sales Trend (Last 30 Days)
-              </Typography>
-              <Box sx={{ height: 300 }}>
-                <SalesTrendChart sales={sales} />
-              </Box>
-            </CardContent>
-          </SalesCard>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <SalesCard>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Sales by Category
-              </Typography>
-              <Box sx={{ height: 300 }}>
-                <DoughnutChart data={salesByCategory} />
-              </Box>
-            </CardContent>
-          </SalesCard>
-        </Grid>
-      </Grid>
-
       <Tabs 
         value={activeTab} 
         onChange={handleTabChange}
@@ -408,17 +306,165 @@ const SalesDashboard = () => {
           }
         }}
       >
-        <Tab label="Sales Records" icon={<ShoppingCart />} iconPosition="start" />
-        <Tab label="Query Management" icon={<Email />} iconPosition="start" />
-        <Tab label="Auto Response History" icon={<CheckCircle />} iconPosition="start" />
+        <Tab label="Dashboard" icon={<TrendingUp />} iconPosition="start" />
+        <Tab label="Product Management" icon={<Inventory />} iconPosition="start" />
+        <Tab label="Sales & Orders" icon={<ShoppingCart />} iconPosition="start" />
+        <Tab label="Client Performance" icon={<People />} iconPosition="start" />
+        <Tab label="Customer Support" icon={<Email />} iconPosition="start" />
       </Tabs>
 
       <Box>
         {activeTab === 0 && (
           <Box>
+            {/* Summary Cards */}
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+              <Grid item xs={12} md={3}>
+                <DashboardCard>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Box>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          Total Clients
+                        </Typography>
+                        <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                          {dashboardStats.totalClients || 0}
+                        </Typography>
+                      </Box>
+                      <Avatar sx={{ bgcolor: 'primary.main', width: 56, height: 56 }}>
+                        <People fontSize="large" />
+                      </Avatar>
+                    </Box>
+                  </CardContent>
+                </DashboardCard>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <DashboardCard>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Box>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          Total Revenue
+                        </Typography>
+                        <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                          {formatCurrency(dashboardStats.totalRevenue || 0)}
+                        </Typography>
+                      </Box>
+                      <Avatar sx={{ bgcolor: 'success.main', width: 56, height: 56 }}>
+                        <AttachMoney fontSize="large" />
+                      </Avatar>
+                    </Box>
+                  </CardContent>
+                </DashboardCard>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <DashboardCard>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Box>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          Total Orders
+                        </Typography>
+                        <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                          {dashboardStats.totalOrders || 0}
+                        </Typography>
+                      </Box>
+                      <Avatar sx={{ bgcolor: 'secondary.main', width: 56, height: 56 }}>
+                        <ShoppingCart fontSize="large" />
+                      </Avatar>
+                    </Box>
+                  </CardContent>
+                </DashboardCard>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <DashboardCard>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Box>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          Active Queries
+                        </Typography>
+                        <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                          {dashboardStats.activeQueries || 0}
+                        </Typography>
+                      </Box>
+                      <Avatar sx={{ bgcolor: 'warning.main', width: 56, height: 56 }}>
+                        <QueryBuilder fontSize="large" />
+                      </Avatar>
+                    </Box>
+                  </CardContent>
+                </DashboardCard>
+              </Grid>
+            </Grid>
+
+            {/* Charts Row */}
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+              <Grid item xs={12} md={8}>
+                <DashboardCard>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Sales Trend (Last 30 Days)
+                    </Typography>
+                    {salesChartData.length > 0 ? (
+                      <LineChart
+                        xAxis={[{ 
+                          data: salesChartData.map(item => item.date),
+                          scaleType: 'band'
+                        }]}
+                        series={[{ 
+                          data: salesChartData.map(item => item.total),
+                          area: true 
+                        }]}
+                        height={300}
+                      />
+                    ) : (
+                      <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Typography color="text.secondary">No sales data available</Typography>
+                      </Box>
+                    )}
+                  </CardContent>
+                </DashboardCard>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <DashboardCard>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Quick Actions
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <Button 
+                        variant="outlined" 
+                        startIcon={<Add />}
+                        onClick={() => setActiveTab(1)}
+                      >
+                        Add New Product
+                      </Button>
+                      <Button 
+                        variant="outlined" 
+                        startIcon={<People />}
+                        onClick={() => setActiveTab(3)}
+                      >
+                        View Client Performance
+                      </Button>
+                      <Button 
+                        variant="outlined" 
+                        startIcon={<Email />}
+                        onClick={() => setActiveTab(4)}
+                      >
+                        Manage Support Queries
+                      </Button>
+                    </Box>
+                  </CardContent>
+                </DashboardCard>
+              </Grid>
+            </Grid>
+          </Box>
+        )}
+
+        {activeTab === 1 && (
+          <Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                Sales Records
+                Product Management
               </Typography>
               <Box>
                 <Tooltip title="Filter">
@@ -438,83 +484,111 @@ const SalesDashboard = () => {
                   onClose={handleMenuClose}
                 >
                   <MenuItem onClick={() => handleFilterChange('all')}>All Categories</MenuItem>
-                  <MenuItem onClick={() => handleFilterChange('electronics')}>Electronics</MenuItem>
-                  <MenuItem onClick={() => handleFilterChange('clothing')}>Clothing</MenuItem>
-                  <MenuItem onClick={() => handleFilterChange('furniture')}>Furniture</MenuItem>
-                  <MenuItem onClick={() => handleFilterChange('other')}>Other</MenuItem>
+                  <MenuItem onClick={() => handleFilterChange('CPU')}>CPUs</MenuItem>
+                  <MenuItem onClick={() => handleFilterChange('GPU')}>GPUs</MenuItem>
+                  <MenuItem onClick={() => handleFilterChange('RAM')}>RAM</MenuItem>
+                  <MenuItem onClick={() => handleFilterChange('Motherboard')}>Motherboards</MenuItem>
+                  <MenuItem onClick={() => handleFilterChange('Storage')}>Storage</MenuItem>
+                  <MenuItem onClick={() => handleFilterChange('Peripherals')}>Peripherals</MenuItem>
                 </Menu>
                 <Button 
                   variant="contained" 
                   startIcon={<Add />} 
-                  onClick={handleAddSale}
+                  onClick={handleAddProduct}
                 >
-                  Add Sale
+                  Add Product
                 </Button>
               </Box>
             </Box>
 
-            {loading && sales.length === 0 ? (
+            {loading && products.length === 0 ? (
               <Box display="flex" justifyContent="center" my={4}>
                 <CircularProgress />
               </Box>
-            ) : error ? (
-              <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>
             ) : (
               <StyledTableContainer component={Paper}>
                 <Table>
                   <TableHead>
                     <TableRow sx={{ bgcolor: 'background.default' }}>
                       <TableCell sx={{ fontWeight: 600 }}>Product</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 600 }}>Quantity</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 600 }}>Price</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Category</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Total</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600 }}>Price</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600 }}>Cost</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600 }}>Stock</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {filteredSales.length > 0 ? (
-                      filteredSales.map((sale) => (
-                        <TableRow key={sale._id} hover>
+                    {filteredProducts.length > 0 ? (
+                      filteredProducts.map((product) => (
+                        <TableRow key={product._id} hover>
                           <TableCell>
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              <Avatar sx={{ bgcolor: 'primary.light', mr: 2, width: 36, height: 36 }}>
-                                <ShoppingCart />
+                              <Avatar 
+                                src={product.imageUrl} 
+                                sx={{ mr: 2, width: 36, height: 36 }}
+                              >
+                                <Inventory />
                               </Avatar>
-                              {sale.product}
+                              <Box>
+                                <Typography>{product.name}</Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {product.description.substring(0, 50)}...
+                                </Typography>
+                              </Box>
                             </Box>
                           </TableCell>
-                          <TableCell align="right">{sale.quantity}</TableCell>
-                          <TableCell align="right">{formatCurrency(sale.price)}</TableCell>
                           <TableCell>
                             <Chip 
-                              label={sale.category} 
+                              label={product.category} 
                               size="small" 
-                              color={
-                                sale.category === 'electronics' ? 'primary' :
-                                sale.category === 'clothing' ? 'secondary' :
-                                sale.category === 'furniture' ? 'warning' : 'default'
-                              }
+                              color="primary"
                             />
                           </TableCell>
-                          <TableCell>{formatDate(sale.date)}</TableCell>
-                          <TableCell sx={{ fontWeight: 600 }}>
-                            {formatCurrency(sale.price * sale.quantity)}
+                          <TableCell align="right">{formatCurrency(product.price)}</TableCell>
+                          <TableCell align="right">{formatCurrency(product.cost)}</TableCell>
+                          <TableCell align="right">
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Box sx={{ width: '100%', mr: 1 }}>
+                                <LinearProgress 
+                                  variant="determinate" 
+                                  value={Math.min(100, (product.stock / (product.minStock * 3)) * 100)}
+                                  color={
+                                    product.stock <= product.minStock ? 'error' :
+                                    product.stock <= product.minStock * 2 ? 'warning' : 'success'
+                                  }
+                                />
+                              </Box>
+                              {product.stock}
+                            </Box>
                           </TableCell>
                           <TableCell>
-                            <Tooltip title="Edit sale">
+                            <Chip 
+                              label={
+                                product.stock <= product.minStock ? 'Low Stock' :
+                                product.stock <= product.minStock * 2 ? 'Medium Stock' : 'In Stock'
+                              }
+                              color={
+                                product.stock <= product.minStock ? 'error' :
+                                product.stock <= product.minStock * 2 ? 'warning' : 'success'
+                              }
+                              size="small"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Tooltip title="Edit product">
                               <IconButton 
-                                onClick={() => handleEditSale(sale)} 
-                                aria-label="edit sale"
+                                onClick={() => handleEditProduct(product)} 
+                                aria-label="edit product"
                               >
                                 <Edit color="primary" />
                               </IconButton>
                             </Tooltip>
-                            <Tooltip title="Delete sale">
+                            <Tooltip title="Delete product">
                               <IconButton 
-                                onClick={() => handleDeleteSale(sale._id)} 
-                                aria-label="delete sale"
+                                onClick={() => handleDeleteProduct(product._id)} 
+                                aria-label="delete product"
                               >
                                 <Delete color="error" />
                               </IconButton>
@@ -526,158 +600,18 @@ const SalesDashboard = () => {
                       <TableRow>
                         <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <ShoppingCart sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+                            <Inventory sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
                             <Typography variant="h6" color="text.secondary">
-                              No sales records found
+                              No products found
                             </Typography>
                             <Button 
                               variant="text" 
                               startIcon={<Add />} 
-                              onClick={handleAddSale}
+                              onClick={handleAddProduct}
                               sx={{ mt: 2 }}
                             >
-                              Add your first sale
+                              Add your first product
                             </Button>
-                          </Box>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </StyledTableContainer>
-            )}
-          </Box>
-        )}
-
-        {activeTab === 1 && (
-          <Box>
-            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-              Client Queries
-            </Typography>
-
-            <Box sx={{ mb: 3, p: 3, bgcolor: 'background.paper', borderRadius: 2, boxShadow: 1 }}>
-              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600, display: 'flex', alignItems: 'center' }}>
-                <Email color="primary" sx={{ mr: 1 }} /> New Customer Inquiry
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    label="Client Name"
-                    variant="outlined"
-                    value={newClientName}
-                    onChange={(e) => setNewClientName(e.target.value)}
-                    fullWidth
-                    InputProps={{
-                      startAdornment: <Person color="action" sx={{ mr: 1 }} />
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    label="Client Email"
-                    variant="outlined"
-                    fullWidth
-                    value={`${newClientName.toLowerCase().replace(/\s+/g, '')}@example.com`}
-                    disabled
-                    InputProps={{
-                      startAdornment: <Email color="action" sx={{ mr: 1 }} />
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    label="Question"
-                    variant="outlined"
-                    fullWidth
-                    value={newQuery}
-                    onChange={(e) => setNewQuery(e.target.value)}
-                    multiline
-                    rows={3}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button 
-                      variant="contained" 
-                      onClick={handleAddQuery}
-                      sx={{ minWidth: 150 }}
-                      startIcon={<Email />}
-                    >
-                      {loading ? <CircularProgress size={24} /> : 'Submit Query'}
-                    </Button>
-                  </Box>
-                </Grid>
-              </Grid>
-            </Box>
-
-            {loading && queries.length === 0 ? (
-              <Box display="flex" justifyContent="center" my={4}>
-                <CircularProgress />
-              </Box>
-            ) : error ? (
-              <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>
-            ) : (
-              <StyledTableContainer component={Paper}>
-                <Table>
-                  <TableHead>
-                    <TableRow sx={{ bgcolor: 'background.default' }}>
-                      <TableCell sx={{ fontWeight: 600 }}>Client</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Question</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {queries.length > 0 ? (
-                      queries.map((query) => (
-                        <TableRow key={query._id} hover>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              <Avatar sx={{ bgcolor: 'secondary.light', mr: 2, width: 36, height: 36 }}>
-                                <Person />
-                              </Avatar>
-                              <Box>
-                                <Typography>{query.name}</Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                  {query.email}
-                                </Typography>
-                              </Box>
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Typography>{query.message}</Typography>
-                            {query.autoReply && (
-                              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                                <strong>Response:</strong> {query.autoReply}
-                              </Typography>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              <CalendarToday color="action" sx={{ mr: 1, fontSize: 'small' }} />
-                              {formatDate(query.date)}
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <StatusBadge status={query.status}>
-                              <Badge 
-                                color={query.status === 'answered' ? 'success' : 'warning'} 
-                                variant="dot" 
-                                sx={{ mr: 1 }}
-                              />
-                              <Box sx={{ textTransform: 'capitalize' }}>{query.status}</Box>
-                            </StatusBadge>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
-                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <Email sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
-                            <Typography variant="h6" color="text.secondary">
-                              No customer queries yet
-                            </Typography>
                           </Box>
                         </TableCell>
                       </TableRow>
@@ -692,55 +626,235 @@ const SalesDashboard = () => {
         {activeTab === 2 && (
           <Box>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-              Auto Response History
+              Sales & Orders Management
             </Typography>
 
-            {autoResponses.length > 0 ? (
-              <StyledTableContainer component={Paper}>
-                <Table>
-                  <TableHead>
-                    <TableRow sx={{ bgcolor: 'background.default' }}>
-                      <TableCell sx={{ fontWeight: 600 }}>Query</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Response</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <DashboardCard>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Recent Sales
+                    </Typography>
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Product</TableCell>
+                            <TableCell>Customer</TableCell>
+                            <TableCell align="right">Total</TableCell>
+                            <TableCell>Date</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {sales.slice(0, 5).map((sale) => (
+                            <TableRow key={sale._id}>
+                              <TableCell>{sale.product?.name}</TableCell>
+                              <TableCell>{sale.customer.name}</TableCell>
+                              <TableCell align="right">{formatCurrency(sale.total)}</TableCell>
+                              <TableCell>{formatDate(sale.date)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </CardContent>
+                </DashboardCard>
+              </Grid>
+              
+              <Grid item xs={12} md={6}>
+                <DashboardCard>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Recent Orders
+                    </Typography>
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Order ID</TableCell>
+                            <TableCell>Customer</TableCell>
+                            <TableCell align="right">Total</TableCell>
+                            <TableCell>Status</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {orders.slice(0, 5).map((order) => (
+                            <TableRow key={order._id}>
+                              <TableCell>{order._id.substring(0, 8)}</TableCell>
+                              <TableCell>{order.user?.firstName} {order.user?.lastName}</TableCell>
+                              <TableCell align="right">{formatCurrency(order.totalAmount)}</TableCell>
+                              <TableCell>
+                                <Chip 
+                                  label={order.status} 
+                                  size="small"
+                                  color={
+                                    order.status === 'Delivered' ? 'success' :
+                                    order.status === 'Cancelled' ? 'error' : 'warning'
+                                  }
+                                />
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </CardContent>
+                </DashboardCard>
+              </Grid>
+            </Grid>
+          </Box>
+        )}
+
+        {activeTab === 3 && (
+          <Box>
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+              Client Performance Analytics
+            </Typography>
+
+            <StyledTableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: 'background.default' }}>
+                    <TableCell sx={{ fontWeight: 600 }}>Client</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600 }}>Total Spent</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600 }}>Orders</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Last Login</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Member Since</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {clients.map((client) => (
+                    <TableRow key={client._id} hover>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Avatar sx={{ mr: 2, bgcolor: 'primary.light' }}>
+                            <Person />
+                          </Avatar>
+                          <Box>
+                            <Typography>{client.firstName} {client.lastName}</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {client.email}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600 }}>
+                        {formatCurrency(client.totalSpent || 0)}
+                      </TableCell>
+                      <TableCell align="right">{client.orderCount || 0}</TableCell>
+                      <TableCell>
+                        {client.lastLogin ? formatDate(client.lastLogin) : 'Never'}
+                      </TableCell>
+                      <TableCell>{formatDate(client.createdAt)}</TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={
+                            (client.totalSpent || 0) > 1000 ? 'VIP' :
+                            (client.totalSpent || 0) > 500 ? 'Premium' : 'Regular'
+                          }
+                          color={
+                            (client.totalSpent || 0) > 1000 ? 'success' :
+                            (client.totalSpent || 0) > 500 ? 'warning' : 'default'
+                          }
+                          size="small"
+                        />
+                      </TableCell>
                     </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {autoResponses.map((response) => (
-                      <TableRow key={response._id} hover>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Avatar sx={{ bgcolor: 'info.light', mr: 2, width: 36, height: 36 }}>
-                              <Email />
-                            </Avatar>
-                            {response.query}
+                  ))}
+                </TableBody>
+              </Table>
+            </StyledTableContainer>
+          </Box>
+        )}
+
+        {activeTab === 4 && (
+          <Box>
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+              Customer Support Management
+            </Typography>
+
+            <StyledTableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: 'background.default' }}>
+                    <TableCell sx={{ fontWeight: 600 }}>Customer</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Query</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {queries.map((query) => (
+                    <TableRow key={query._id} hover>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Avatar sx={{ bgcolor: 'secondary.light', mr: 2, width: 36, height: 36 }}>
+                            <Person />
+                          </Avatar>
+                          <Box>
+                            <Typography>{query.customer.name}</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {query.customer.email}
+                            </Typography>
                           </Box>
-                        </TableCell>
-                        <TableCell>{response.response}</TableCell>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <CalendarToday color="action" sx={{ mr: 1, fontSize: 'small' }} />
-                            {formatDate(response.date)}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Typography sx={{ fontWeight: 600 }}>{query.subject}</Typography>
+                        <Typography variant="body2">{query.message}</Typography>
+                        {query.response && (
+                          <Box sx={{ mt: 1, p: 1, bgcolor: 'grey.100', borderRadius: 1 }}>
+                            <Typography variant="subtitle2" color="primary">
+                              Response:
+                            </Typography>
+                            <Typography variant="body2">{query.response}</Typography>
                           </Box>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </StyledTableContainer>
-            ) : (
-              <Alert severity="info" sx={{ borderRadius: 2 }}>
-                No auto responses available. Responses will appear here once queries are answered.
-              </Alert>
-            )}
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <CalendarToday color="action" sx={{ mr: 1, fontSize: 'small' }} />
+                          {formatDate(query.createdAt)}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={query.status}>
+                          <Badge 
+                            color={query.status === 'Resolved' ? 'success' : 'warning'} 
+                            variant="dot" 
+                            sx={{ mr: 1 }}
+                          />
+                          <Box sx={{ textTransform: 'capitalize' }}>{query.status}</Box>
+                        </StatusBadge>
+                      </TableCell>
+                      <TableCell>
+                        {query.status !== 'Resolved' && (
+                          <Tooltip title="Respond to query">
+                            <IconButton 
+                              onClick={() => handleRespondToQuery(query)}
+                              aria-label="respond to query"
+                            >
+                              <Reply color="primary" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </StyledTableContainer>
           </Box>
         )}
       </Box>
 
-      {/* Add/Edit Sale Dialog */}
-      <Dialog open={openSaleDialog} onClose={() => setOpenSaleDialog(false)} maxWidth="sm" fullWidth>
+      {/* Product Dialog */}
+      <Dialog open={openProductDialog} onClose={() => setOpenProductDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ bgcolor: 'primary.main', color: 'white' }}>
-          {currentSale._id ? 'Edit Sale Record' : 'Add New Sale'}
+          {currentProduct._id ? 'Edit Product' : 'Add New Product'}
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
           <Grid container spacing={2}>
@@ -749,23 +863,21 @@ const SalesDashboard = () => {
                 label="Product Name"
                 variant="outlined"
                 fullWidth
-                value={currentSale.product}
-                onChange={(e) => setCurrentSale({ ...currentSale, product: e.target.value })}
+                value={currentProduct.name}
+                onChange={(e) => setCurrentProduct({ ...currentProduct, name: e.target.value })}
                 sx={{ mb: 2 }}
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12}>
               <TextField
-                label="Quantity"
-                type="number"
+                label="Description"
                 variant="outlined"
                 fullWidth
-                value={currentSale.quantity}
-                onChange={(e) => setCurrentSale({ ...currentSale, quantity: +e.target.value })}
+                multiline
+                rows={3}
+                value={currentProduct.description}
+                onChange={(e) => setCurrentProduct({ ...currentProduct, description: e.target.value })}
                 sx={{ mb: 2 }}
-                InputProps={{
-                  inputProps: { min: 1 }
-                }}
               />
             </Grid>
             <Grid item xs={12} md={6}>
@@ -774,8 +886,8 @@ const SalesDashboard = () => {
                 type="number"
                 variant="outlined"
                 fullWidth
-                value={currentSale.price}
-                onChange={(e) => setCurrentSale({ ...currentSale, price: +e.target.value })}
+                value={currentProduct.price}
+                onChange={(e) => setCurrentProduct({ ...currentProduct, price: +e.target.value })}
                 sx={{ mb: 2 }}
                 InputProps={{
                   startAdornment: <AttachMoney color="action" sx={{ mr: 1 }} />,
@@ -785,55 +897,118 @@ const SalesDashboard = () => {
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
-                label="Category"
-                select
+                label="Cost"
+                type="number"
                 variant="outlined"
                 fullWidth
-                value={currentSale.category}
-                onChange={(e) => setCurrentSale({ ...currentSale, category: e.target.value })}
+                value={currentProduct.cost}
+                onChange={(e) => setCurrentProduct({ ...currentProduct, cost: +e.target.value })}
                 sx={{ mb: 2 }}
-              >
-                <MenuItem value="electronics">Electronics</MenuItem>
-                <MenuItem value="clothing">Clothing</MenuItem>
-                <MenuItem value="furniture">Furniture</MenuItem>
-                <MenuItem value="other">Other</MenuItem>
-              </TextField>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Date"
-                type="date"
-                variant="outlined"
-                fullWidth
-                value={currentSale.date}
-                onChange={(e) => setCurrentSale({ ...currentSale, date: e.target.value })}
-                sx={{ mb: 2 }}
-                InputLabelProps={{
-                  shrink: true,
+                InputProps={{
+                  startAdornment: <AttachMoney color="action" sx={{ mr: 1 }} />,
+                  inputProps: { min: 0, step: 0.01 }
                 }}
               />
             </Grid>
-            {currentSale._id && (
-              <Grid item xs={12}>
-                <Typography variant="body2" color="text.secondary">
-                  Last updated: {formatDate(currentSale.updatedAt || currentSale.date)}
-                </Typography>
-              </Grid>
-            )}
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Category</InputLabel>
+                <Select
+                  value={currentProduct.category}
+                  label="Category"
+                  onChange={(e) => setCurrentProduct({ ...currentProduct, category: e.target.value })}
+                >
+                  <MenuItem value="CPU">CPU</MenuItem>
+                  <MenuItem value="GPU">GPU</MenuItem>
+                  <MenuItem value="RAM">RAM</MenuItem>
+                  <MenuItem value="Motherboard">Motherboard</MenuItem>
+                  <MenuItem value="Storage">Storage</MenuItem>
+                  <MenuItem value="Peripherals">Peripherals</MenuItem>
+                  <MenuItem value="Other">Other</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Image URL"
+                variant="outlined"
+                fullWidth
+                value={currentProduct.imageUrl}
+                onChange={(e) => setCurrentProduct({ ...currentProduct, imageUrl: e.target.value })}
+                sx={{ mb: 2 }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Stock Quantity"
+                type="number"
+                variant="outlined"
+                fullWidth
+                value={currentProduct.stock}
+                onChange={(e) => setCurrentProduct({ ...currentProduct, stock: +e.target.value })}
+                sx={{ mb: 2 }}
+                inputProps={{ min: 0 }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Minimum Stock"
+                type="number"
+                variant="outlined"
+                fullWidth
+                value={currentProduct.minStock}
+                onChange={(e) => setCurrentProduct({ ...currentProduct, minStock: +e.target.value })}
+                sx={{ mb: 2 }}
+                inputProps={{ min: 0 }}
+              />
+            </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenSaleDialog(false)} color="secondary">
+          <Button onClick={() => setOpenProductDialog(false)} color="secondary">
             Cancel
           </Button>
           <Button
-            onClick={handleSaveSale}
+            onClick={handleSaveProduct}
             color="primary"
             variant="contained"
             disabled={loading}
             startIcon={loading ? <CircularProgress size={20} /> : null}
           >
-            {currentSale._id ? 'Update Sale' : 'Add Sale'}
+            {currentProduct._id ? 'Update Product' : 'Add Product'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Query Response Dialog */}
+      <Dialog open={openQueryDialog} onClose={() => setOpenQueryDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ bgcolor: 'primary.main', color: 'white' }}>
+          Respond to Customer Query
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <TextField
+            label="Response"
+            variant="outlined"
+            fullWidth
+            multiline
+            rows={4}
+            value={currentQuery.response}
+            onChange={(e) => setCurrentQuery({ ...currentQuery, response: e.target.value })}
+            sx={{ mb: 2 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenQueryDialog(false)} color="secondary">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveResponse}
+            color="primary"
+            variant="contained"
+            disabled={loading || !currentQuery.response}
+            startIcon={loading ? <CircularProgress size={20} /> : null}
+          >
+            Submit Response
           </Button>
         </DialogActions>
       </Dialog>

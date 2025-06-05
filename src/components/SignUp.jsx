@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   TextField,
   Button,
@@ -10,7 +10,10 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Alert,
+  Link,
+  CircularProgress
 } from "@mui/material";
 import axios from "axios";
 
@@ -27,9 +30,8 @@ const SignUp = () => {
 
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
-  const from = location.state?.from?.pathname || "/";
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -37,6 +39,11 @@ const SignUp = () => {
       ...prev,
       [name]: type === "checkbox" ? checked : value
     }));
+    
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
   };
 
   const validateForm = () => {
@@ -44,6 +51,8 @@ const SignUp = () => {
 
     if (!formData.firstName.trim()) {
       newErrors.firstName = "First name is required";
+    } else if (formData.firstName.length < 2) {
+      newErrors.firstName = "First name must be at least 2 characters";
     }
 
     if (!formData.email.trim()) {
@@ -56,6 +65,8 @@ const SignUp = () => {
       newErrors.password = "Password is required";
     } else if (formData.password.length < 8) {
       newErrors.password = "Password must be at least 8 characters";
+    } else if (!/(?=.*[A-Z])(?=.*[0-9])/.test(formData.password)) {
+      newErrors.password = "Must contain at least one uppercase letter and one number";
     }
 
     if (formData.password !== formData.confirmPassword) {
@@ -80,8 +91,10 @@ const SignUp = () => {
 
     if (!validateForm()) return;
 
+    setIsLoading(true);
+
     try {
-      await axios.post("https://cloud-2lxn.onrender.com", {
+      const response = await axios.post("http://localhost:5000/api/register", {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
@@ -89,26 +102,55 @@ const SignUp = () => {
         role: formData.role
       });
 
-      // Redirect to login after successful registration
-      navigate("/login");
+      // Store token and redirect to dashboard
+      localStorage.setItem('token', response.data.token);
+      navigate(`/${formData.role.toLowerCase()}/dashboard`);
 
     } catch (err) {
-      setApiError(err.response?.data?.message || "Registration failed. Please try again.");
+      const errorMessage = err.response?.data?.message || 
+                          err.response?.data?.error || 
+                          "Registration failed. Please try again.";
+      setApiError(errorMessage);
+      console.error('Registration error:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", p: 2 }}>
+    <Box sx={{ 
+      display: "flex", 
+      justifyContent: "center", 
+      alignItems: "center", 
+      minHeight: "100vh", 
+      p: 2,
+      backgroundColor: '#f5f5f5'
+    }}>
       <Box
         component="form"
         onSubmit={handleSubmit}
-        sx={{ width: "100%", maxWidth: 400, p: 4, boxShadow: 3, borderRadius: 2 }}
+        sx={{ 
+          width: "100%", 
+          maxWidth: 500, 
+          p: 4, 
+          boxShadow: 3, 
+          borderRadius: 2,
+          backgroundColor: 'white'
+        }}
+        noValidate
       >
-        <Typography variant="h4" component="h1" gutterBottom align="center">
+        <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ fontWeight: 'bold' }}>
           Create Account
         </Typography>
+        <Typography variant="body1" align="center" color="textSecondary" sx={{ mb: 3 }}>
+          Join us today! Please enter your details
+        </Typography>
 
-        {apiError && <Typography color="error" align="center" gutterBottom>{apiError}</Typography>}
+        {apiError && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setApiError('')}>
+            {apiError}
+          </Alert>
+        )}
 
         <Box sx={{ display: "flex", gap: 2 }}>
           <TextField
@@ -121,6 +163,7 @@ const SignUp = () => {
             error={!!errors.firstName}
             helperText={errors.firstName}
             required
+            autoComplete="given-name"
           />
           <TextField
             label="Last Name"
@@ -129,6 +172,7 @@ const SignUp = () => {
             margin="normal"
             value={formData.lastName}
             onChange={handleChange}
+            autoComplete="family-name"
           />
         </Box>
 
@@ -143,7 +187,9 @@ const SignUp = () => {
           error={!!errors.email}
           helperText={errors.email}
           required
+          autoComplete="email"
         />
+        
         <TextField
           label="Password"
           name="password"
@@ -155,7 +201,9 @@ const SignUp = () => {
           error={!!errors.password}
           helperText={errors.password}
           required
+          autoComplete="new-password"
         />
+        
         <TextField
           label="Confirm Password"
           name="confirmPassword"
@@ -167,19 +215,19 @@ const SignUp = () => {
           error={!!errors.confirmPassword}
           helperText={errors.confirmPassword}
           required
+          autoComplete="new-password"
         />
 
-        <FormControl fullWidth margin="normal" error={!!errors.role}>
+        <FormControl fullWidth margin="normal" error={!!errors.role} required>
           <InputLabel id="role-label">Select Role</InputLabel>
           <Select
             labelId="role-label"
-            id="role"
             name="role"
             value={formData.role}
             label="Select Role"
             onChange={handleChange}
+            sx={{ textAlign: 'left' }}
           >
-            <MenuItem value=""><em>None</em></MenuItem>
             <MenuItem value="Client">Client</MenuItem>
             <MenuItem value="Investor">Investor</MenuItem>
             <MenuItem value="Finance">Finance</MenuItem>
@@ -187,7 +235,7 @@ const SignUp = () => {
             <MenuItem value="Partner">Partner</MenuItem>
             <MenuItem value="Sales">Sales</MenuItem>
           </Select>
-          {errors.role && <Typography color="error" variant="body2">{errors.role}</Typography>}
+          {errors.role && <Typography color="error" variant="body2" sx={{ mt: 1 }}>{errors.role}</Typography>}
         </FormControl>
 
         <FormControlLabel
@@ -197,9 +245,14 @@ const SignUp = () => {
               checked={formData.acceptTerms}
               onChange={handleChange}
               color="primary"
+              required
             />
           }
-          label={<Typography variant="body2">I agree to the Terms and Conditions</Typography>}
+          label={
+            <Typography variant="body2">
+              I agree to the <Link href="/terms" target="_blank">Terms and Conditions</Link>
+            </Typography>
+          }
           sx={{ mt: 2 }}
         />
         {errors.acceptTerms && (
@@ -211,10 +264,15 @@ const SignUp = () => {
           variant="contained"
           fullWidth
           size="large"
-          sx={{ mt: 3, mb: 2 }}
+          sx={{ mt: 3, mb: 2, py: 1.5 }}
+          disabled={isLoading}
         >
-          Sign Up
+          {isLoading ? <CircularProgress size={24} /> : 'Sign Up'}
         </Button>
+
+        <Typography variant="body2" align="center">
+          Already have an account? <Link href="/login" fontWeight="bold">Log In</Link>
+        </Typography>
       </Box>
     </Box>
   );

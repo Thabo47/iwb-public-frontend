@@ -23,7 +23,7 @@ const Contact = () => {
     setIsSubmitting(true);
     try {
       // Update this URL to your Azure backend endpoint
-      await axios.post("https://your-backend-api.com/queries", formData);
+      await axios.post("http://localhost:5000/api/queries", formData);
       setSuccess(true);
       setFormData({ name: "", email: "", message: "" });
     } catch (error) {
