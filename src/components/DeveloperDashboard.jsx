@@ -372,7 +372,7 @@ const DeveloperDashboard = () => {
   }
 
   // Add API configuration
-  const API_BASE_URL = "http://localhost:5000/api"
+  const API_BASE_URL = "https://cloud-backend-5.onrender.com"
 
   // Create axios instance with auth
   const api = axios.create({

@@ -94,7 +94,7 @@ const SignUp = () => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post("http://localhost:5000/api/register", {
+      const response = await axios.post("https://cloud-backend-5.onrender.com/register", {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
