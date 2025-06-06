@@ -78,7 +78,7 @@ import {
 } from "recharts"
 import axios from "axios"
 
-const API_BASE_URL = "https://cloud-backend-5.onrender.com"
+const API_BASE_URL = "https://cloud-backend-8.onrender.com/api"
 
 // Create axios instance with auth
 const api = axios.create({

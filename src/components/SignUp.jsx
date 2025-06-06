@@ -94,7 +94,7 @@ const SignUp = () => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post("https://cloud-backend-5.onrender.com/api/register", {
+      const response = await axios.post("https://cloud-backend-8.onrender.com/api/register", {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
