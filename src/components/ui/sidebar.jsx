@@ -42,7 +42,11 @@ const SidebarProvider = ({ defaultOpen = true, children, ...props }) => {
   const [open, setOpen] = useState(defaultOpen)
 
   const toggleSidebar = useCallback(() => {
-    return isMobile ? setOpenMobile((prev) => !prev) : setOpen((prev) => !prev)
+    if (isMobile) {
+      setOpenMobile((prev) => !prev)
+    } else {
+      setOpen((prev) => !prev)
+    }
   }, [isMobile])
 
   useEffect(() => {
@@ -89,7 +93,7 @@ const SidebarProvider = ({ defaultOpen = true, children, ...props }) => {
 
 // Sidebar Component
 const Sidebar = ({ side = "left", variant = "sidebar", collapsible = "offcanvas", className, children, ...props }) => {
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+  const { isMobile, state, open, openMobile, setOpenMobile, toggleSidebar } = useSidebar()
 
   const sidebarStyles = {
     base: {
@@ -110,31 +114,32 @@ const Sidebar = ({ side = "left", variant = "sidebar", collapsible = "offcanvas"
       transform: openMobile ? "translateX(0)" : "translateX(-100%)",
     },
     desktop: {
-      transform: state === "collapsed" && collapsible === "offcanvas" ? "translateX(-100%)" : "translateX(0)",
+      transform: open ? "translateX(0)" : "translateX(-100%)",
     },
     overlay: {
       position: "fixed",
       inset: 0,
       backgroundColor: "rgba(0, 0, 0, 0.5)",
       zIndex: 40,
+      display: openMobile ? "block" : "none",
     },
-  }
-
-  if (isMobile) {
-    return (
-      <>
-        {openMobile && <div style={sidebarStyles.overlay} onClick={() => setOpenMobile(false)} />}
-        <div style={{ ...sidebarStyles.base, ...sidebarStyles.mobile }} {...props}>
-          {children}
-        </div>
-      </>
-    )
   }
 
   return (
     <>
-      <div style={{ width: state === "collapsed" ? "0" : "16rem", transition: "width 0.3s ease-in-out" }} />
-      <div style={{ ...sidebarStyles.base, ...sidebarStyles.desktop }} {...props}>
+      {isMobile && (
+        <div 
+          style={sidebarStyles.overlay} 
+          onClick={() => setOpenMobile(false)} 
+        />
+      )}
+      <div 
+        style={{ 
+          ...sidebarStyles.base, 
+          ...(isMobile ? sidebarStyles.mobile : sidebarStyles.desktop) 
+        }} 
+        {...props}
+      >
         {children}
       </div>
     </>
@@ -187,6 +192,8 @@ const SidebarTrigger = ({ className, onClick, ...props }) => {
 
 // SidebarInset Component
 const SidebarInset = ({ className, style, ...props }) => {
+  const { open } = useSidebar()
+  
   const insetStyles = {
     position: "relative",
     display: "flex",
@@ -194,6 +201,8 @@ const SidebarInset = ({ className, style, ...props }) => {
     flex: 1,
     flexDirection: "column",
     backgroundColor: "#f8fafc",
+    marginLeft: open ? "16rem" : "0",
+    transition: "margin-left 0.3s ease-in-out",
     ...style,
   }
 
@@ -358,9 +367,9 @@ const SidebarMenuButton = ({ asChild = false, isActive = false, children, ...pro
   )
 }
 
-// SidebarRail Component (optional rail for resizing)
+// SidebarRail Component
 const SidebarRail = ({ className, ...props }) => {
-  return null // Simplified version without rail functionality
+  return null
 }
 
 export {

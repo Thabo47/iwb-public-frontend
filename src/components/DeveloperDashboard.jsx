@@ -41,7 +41,9 @@ import {
   TableRow,
   Avatar,
   Badge,
+  useMediaQuery, // Import useMediaQuery
 } from "@mui/material"
+import { useTheme } from "@mui/material/styles" // Import useTheme
 import {
   Code,
   Folder,
@@ -89,6 +91,9 @@ import {
 import axios from "axios"
 
 const DeveloperDashboard = () => {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm")) // Define isMobile
+
   const [activeTab, setActiveTab] = useState(0)
   const [files, setFiles] = useState([
     {
@@ -1233,7 +1238,13 @@ const DeveloperDashboard = () => {
 
             {/* Main Logs Table */}
             <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: 3 }}>
-              <Table>
+              <Table
+                sx={{
+                  width: "100%",
+                  overflowX: "auto",
+                  display: "block",
+                }}
+              >
                 <TableHead>
                   <TableRow sx={{ bgcolor: "background.default" }}>
                     <TableCell sx={{ fontWeight: 600 }}>Timestamp</TableCell>
@@ -1274,7 +1285,7 @@ const DeveloperDashboard = () => {
                         <Typography
                           variant="body2"
                           sx={{
-                            maxWidth: 300,
+                            maxWidth: isMobile ? 200 : 300, // Responsive maxWidth
                             overflow: "hidden",
                             textOverflow: "ellipsis",
                             fontFamily: "monospace",
@@ -1346,7 +1357,7 @@ const DeveloperDashboard = () => {
               File Operations
             </Typography>
 
-            <Box sx={{ display: "flex", gap: 3, mb: 4 }}>
+            <Box sx={{ display: "flex", gap: 3, mb: 4, flexDirection: isMobile ? "column" : "row" }}>
               <Paper elevation={2} sx={{ p: 3, flex: 1, borderRadius: 2 }}>
                 <Typography variant="subtitle1" gutterBottom sx={{ display: "flex", alignItems: "center" }}>
                   <CloudUpload sx={{ mr: 1 }} /> Upload Files

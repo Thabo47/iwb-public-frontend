@@ -41,7 +41,10 @@ const HeroSection = styled(Box)(({ theme }) => ({
     ${theme.palette.primary.main}15 100%)`,
   backdropFilter: "blur(10px)",
   borderRadius: "20px",
-  padding: theme.spacing(8, 4),
+  padding: theme.spacing(6, 2),
+  [theme.breakpoints.up('sm')]: {
+    padding: theme.spacing(8, 4),
+  },
   margin: theme.spacing(4, 0),
   position: "relative",
   overflow: "hidden",
@@ -66,7 +69,10 @@ const FeatureCard = styled(Box)(({ theme }) => ({
     ${theme.palette.grey[50]} 100%)`,
   backdropFilter: "blur(10px)",
   borderRadius: "16px",
-  padding: theme.spacing(4),
+  padding: theme.spacing(3),
+  [theme.breakpoints.up('sm')]: {
+    padding: theme.spacing(4),
+  },
   textAlign: "center",
   cursor: "pointer",
   border: `1px solid ${theme.palette.divider}`,
@@ -102,9 +108,15 @@ const CTASection = styled(Box)(({ theme }) => ({
     ${theme.palette.secondary.main} 50%, 
     ${theme.palette.primary.dark} 100%)`,
   borderRadius: "20px",
-  padding: theme.spacing(6),
+  padding: theme.spacing(4),
+  [theme.breakpoints.up('sm')]: {
+    padding: theme.spacing(6),
+  },
   textAlign: "center",
-  margin: theme.spacing(8, 0),
+  margin: theme.spacing(6, 0),
+  [theme.breakpoints.up('sm')]: {
+    margin: theme.spacing(8, 0),
+  },
   position: "relative",
   overflow: "hidden",
   "&::before": {
@@ -129,8 +141,14 @@ const GradientButton = styled(Button)(({ theme, variant }) => ({
   border: 0,
   borderRadius: "50px",
   color: "white",
-  padding: theme.spacing(1.5, 4),
-  fontSize: "1.1rem",
+  padding: theme.spacing(1, 3),
+  [theme.breakpoints.up('sm')]: {
+    padding: theme.spacing(1.5, 4),
+  },
+  fontSize: "1rem",
+  [theme.breakpoints.up('sm')]: {
+    fontSize: "1.1rem",
+  },
   fontWeight: 600,
   textTransform: "none",
   position: "relative",
@@ -161,21 +179,28 @@ const GradientButton = styled(Button)(({ theme, variant }) => ({
   },
 }))
 
-const FloatingIcon = styled(Box)({
+const FloatingIcon = styled(Box)(({ theme }) => ({
   display: "inline-block",
   animation: `${float} 3s ease-in-out infinite`,
-  fontSize: "2rem",
-})
+  fontSize: "1.5rem",
+  [theme.breakpoints.up('sm')]: {
+    fontSize: "2rem",
+  },
+}))
 
-const PulsingIcon = styled(Box)({
+const PulsingIcon = styled(Box)(({ theme }) => ({
   display: "inline-block",
   animation: `${pulse} 2s ease-in-out infinite`,
-  fontSize: "1.5rem",
-})
+  fontSize: "1.2rem",
+  [theme.breakpoints.up('sm')]: {
+    fontSize: "1.5rem",
+  },
+}))
 
 const LandingPage = () => {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down("md"))
+  const isSmallMobile = useMediaQuery(theme.breakpoints.down("sm"))
   const navigate = useNavigate()
 
   const handleNavigation = (path) => {
@@ -215,12 +240,12 @@ const LandingPage = () => {
         ${theme.palette.background.default} 100%)`,
       }}
     >
-      <Container component="main" sx={{ py: 4 }}>
+      <Container component="main" sx={{ py: isMobile ? 2 : 4 }}>
         {/* Hero Section */}
         <HeroSection>
           <FloatingIcon sx={{ mb: 2 }}>🌍</FloatingIcon>
           <Typography
-            variant={isMobile ? "h3" : "h2"}
+            variant={isSmallMobile ? "h4" : isMobile ? "h3" : "h2"}
             component="h1"
             gutterBottom
             sx={{
@@ -230,12 +255,14 @@ const LandingPage = () => {
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               mb: 3,
+              px: isMobile ? 1 : 0,
+              fontSize: isSmallMobile ? '2rem' : 'inherit',
             }}
           >
             Welcome to IWB Platform
           </Typography>
           <Typography
-            variant={isMobile ? "h6" : "h5"}
+            variant={isSmallMobile ? "body1" : isMobile ? "h6" : "h5"}
             color="text.secondary"
             paragraph
             sx={{
@@ -244,6 +271,7 @@ const LandingPage = () => {
               mb: 4,
               fontWeight: 400,
               lineHeight: 1.6,
+              px: isMobile ? 2 : 0,
             }}
           >
             <PulsingIcon sx={{ mr: 1 }}>🌟</PulsingIcon>
@@ -253,36 +281,37 @@ const LandingPage = () => {
           <Box
             sx={{
               display: "flex",
-              gap: 3,
+              gap: 2,
               justifyContent: "center",
               flexWrap: "wrap",
               mt: 4,
+              px: isMobile ? 2 : 0,
             }}
           >
             <GradientButton
               variant="primary"
-              size="large"
+              size={isMobile ? "medium" : "large"}
               onClick={() => handleNavigation("/signup")}
-              sx={{ minWidth: isMobile ? "200px" : "auto" }}
+              sx={{ minWidth: isSmallMobile ? "160px" : "200px" }}
             >
-              ✨ Get Started Today
+              {isSmallMobile ? "✨ Get Started" : "✨ Get Started Today"}
             </GradientButton>
             <GradientButton
               variant="secondary"
-              size="large"
+              size={isMobile ? "medium" : "large"}
               onClick={() => handleNavigation("/login")}
-              sx={{ minWidth: isMobile ? "200px" : "auto" }}
+              sx={{ minWidth: isSmallMobile ? "160px" : "200px" }}
             >
-              🔑 Login to Dashboard
+              {isSmallMobile ? "🔑 Login" : "🔑 Login to Dashboard"}
             </GradientButton>
           </Box>
         </HeroSection>
 
         {/* Features Section */}
-        <Box sx={{ py: 8 }}>
-          <Box sx={{ textAlign: "center", mb: 6 }}>
+        <Box sx={{ py: isMobile ? 4 : 8 }}>
+          <Box sx={{ textAlign: "center", mb: isMobile ? 4 : 6 }}>
             <Typography
-              variant="h3"
+              variant={isMobile ? "h4" : "h3"}
               gutterBottom
               sx={{
                 fontWeight: 700,
@@ -291,11 +320,20 @@ const LandingPage = () => {
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 mb: 2,
+                px: isMobile ? 2 : 0,
               }}
             >
               🔍 Explore Our Platform
             </Typography>
-            <Typography variant="h6" color="text.secondary" sx={{ maxWidth: "600px", mx: "auto" }}>
+            <Typography 
+              variant={isMobile ? "body1" : "h6"} 
+              color="text.secondary" 
+              sx={{ 
+                maxWidth: "600px", 
+                mx: "auto",
+                px: isMobile ? 2 : 0,
+              }}
+            >
               Discover comprehensive solutions for sustainable e-waste management
             </Typography>
           </Box>
@@ -303,10 +341,11 @@ const LandingPage = () => {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(300px, 1fr))",
-              gap: 4,
+              gridTemplateColumns: isSmallMobile ? "1fr" : "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: 3,
               maxWidth: "1200px",
               mx: "auto",
+              px: isMobile ? 2 : 0,
             }}
           >
             {features.map((feature, index) => (
@@ -317,9 +356,9 @@ const LandingPage = () => {
                   animationDelay: `${index * 0.2}s`,
                 }}
               >
-                <Box sx={{ fontSize: "3rem", mb: 2 }}>{feature.icon}</Box>
+                <Box sx={{ fontSize: "2.5rem", mb: 2 }}>{feature.icon}</Box>
                 <Typography
-                  variant="h5"
+                  variant={isMobile ? "h6" : "h5"}
                   gutterBottom
                   sx={{
                     fontWeight: 600,
@@ -335,18 +374,20 @@ const LandingPage = () => {
                   sx={{
                     mb: 3,
                     lineHeight: 1.6,
+                    fontSize: isMobile ? '0.9rem' : '1rem',
                   }}
                 >
                   {feature.description}
                 </Typography>
                 <Button
                   variant="outlined"
+                  size={isMobile ? "small" : "medium"}
                   sx={{
                     borderRadius: "25px",
                     textTransform: "none",
                     fontWeight: 600,
                     px: 3,
-                    py: 1,
+                    py: isMobile ? 0.5 : 1,
                     borderColor: theme.palette.primary.main,
                     color: theme.palette.primary.main,
                     "&:hover": {
@@ -369,23 +410,24 @@ const LandingPage = () => {
         {/* Statistics Section */}
         <Box
           sx={{
-            py: 8,
+            py: isMobile ? 4 : 8,
             textAlign: "center",
             background: `linear-gradient(135deg, 
             ${theme.palette.primary.main}05 0%, 
             ${theme.palette.secondary.main}05 100%)`,
             borderRadius: "20px",
-            mb: 8,
+            mb: isMobile ? 4 : 8,
+            px: isMobile ? 2 : 0,
           }}
         >
-          <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, mb: 4 }}>
+          <Typography variant={isMobile ? "h5" : "h4"} gutterBottom sx={{ fontWeight: 700, mb: 4 }}>
             🏆 Our Impact
           </Typography>
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-              gap: 4,
+              gridTemplateColumns: isSmallMobile ? "1fr" : "repeat(3, 1fr)",
+              gap: 3,
               maxWidth: "800px",
               mx: "auto",
             }}
@@ -395,9 +437,9 @@ const LandingPage = () => {
               { number: "500+", label: "Happy Clients", icon: "😊" },
               { number: "99%", label: "Satisfaction Rate", icon: "⭐" },
             ].map((stat, index) => (
-              <Box key={index} sx={{ p: 3 }}>
+              <Box key={index} sx={{ p: isMobile ? 2 : 3 }}>
                 <Typography
-                  variant="h3"
+                  variant={isMobile ? "h4" : "h3"}
                   sx={{
                     fontWeight: 800,
                     color: theme.palette.primary.main,
@@ -406,7 +448,7 @@ const LandingPage = () => {
                 >
                   {stat.icon} {stat.number}
                 </Typography>
-                <Typography variant="h6" color="text.secondary">
+                <Typography variant={isMobile ? "body1" : "h6"} color="text.secondary">
                   {stat.label}
                 </Typography>
               </Box>
@@ -418,23 +460,25 @@ const LandingPage = () => {
         <CTASection>
           <FloatingIcon sx={{ mb: 2 }}>🚀</FloatingIcon>
           <Typography
-            variant="h4"
+            variant={isMobile ? "h5" : "h4"}
             gutterBottom
             sx={{
               fontWeight: 700,
               color: "white",
               mb: 2,
+              px: isMobile ? 2 : 0,
             }}
           >
             Ready to Make a Difference?
           </Typography>
           <Typography
-            variant="h6"
+            variant={isMobile ? "body1" : "h6"}
             sx={{
               mb: 4,
               color: "rgba(255, 255, 255, 0.9)",
               maxWidth: "600px",
               mx: "auto",
+              px: isMobile ? 2 : 0,
             }}
           >
             Join thousands of environmentally conscious businesses and individuals. Start your sustainable e-waste
@@ -443,47 +487,47 @@ const LandingPage = () => {
           <Box
             sx={{
               display: "flex",
-              gap: 3,
+              gap: 2,
               justifyContent: "center",
               flexWrap: "wrap",
             }}
           >
             <Button
               variant="contained"
-              size="large"
+              size={isMobile ? "medium" : "large"}
               onClick={() => handleNavigation("/home")}
               sx={{
                 background: "rgba(255, 255, 255, 0.2)",
                 backdropFilter: "blur(10px)",
                 border: "1px solid rgba(255, 255, 255, 0.3)",
                 color: "white",
-                px: 4,
-                py: 1.5,
+                px: isMobile ? 3 : 4,
+                py: isMobile ? 1 : 1.5,
                 borderRadius: "50px",
                 fontWeight: 600,
                 textTransform: "none",
-                fontSize: "1.1rem",
+                fontSize: isMobile ? "0.9rem" : "1.1rem",
                 "&:hover": {
                   background: "rgba(255, 255, 255, 0.3)",
                   transform: "translateY(-2px)",
                 },
               }}
             >
-              🌐 Explore Platform
+              {isSmallMobile ? "🌐 Explore" : "🌐 Explore Platform"}
             </Button>
             <Button
               variant="outlined"
-              size="large"
+              size={isMobile ? "medium" : "large"}
               onClick={() => handleNavigation("/contact")}
               sx={{
                 borderColor: "rgba(255, 255, 255, 0.5)",
                 color: "white",
-                px: 4,
-                py: 1.5,
+                px: isMobile ? 3 : 4,
+                py: isMobile ? 1 : 1.5,
                 borderRadius: "50px",
                 fontWeight: 600,
                 textTransform: "none",
-                fontSize: "1.1rem",
+                fontSize: isMobile ? "0.9rem" : "1.1rem",
                 "&:hover": {
                   borderColor: "white",
                   background: "rgba(255, 255, 255, 0.1)",
@@ -491,7 +535,7 @@ const LandingPage = () => {
                 },
               }}
             >
-              💬 Contact Us
+              {isSmallMobile ? "💬 Contact" : "💬 Contact Us"}
             </Button>
           </Box>
         </CTASection>

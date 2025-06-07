@@ -3,6 +3,8 @@ import { AuthProvider } from "./context/AuthContext"
 
 // Layout Components
 import { SidebarProvider } from "./components/ui/sidebar"
+import DashboardWrapper from "./components/Layout/DashboardWrapper";
+import PageWrapper from "./components/Layout/PageWrapper";
 import AppSidebar from "./components/AppSidebar"
 import { SidebarInset, SidebarTrigger } from "./components/ui/sidebar"
 import Footer from "./components/Footer"
@@ -103,6 +105,9 @@ const AppLayout = ({ children }) => {
     return titleMap[path] || "IWB"
   }
 
+  // Check if current route is a dashboard route
+  const isDashboardRoute = noFooterRoutes.includes(location.pathname)
+
   // Special layout for auth pages
   if (noSidebarRoutes.includes(location.pathname)) {
     if (location.pathname === "/") {
@@ -110,6 +115,18 @@ const AppLayout = ({ children }) => {
     }
     return <div style={styles.authPageWrapper}>{children}</div>
   }
+
+  // Wrap content with appropriate wrapper based on route type
+  const wrappedChildren = isDashboardRoute ? (
+    <DashboardWrapper title={getPageTitle()}>
+      {children}
+    </DashboardWrapper>
+  ) : (
+    <PageWrapper title={getPageTitle()}>
+      {children}
+      {shouldShowFooter && <Footer />}
+    </PageWrapper>
+  )
 
   // Layout with sidebar for other pages
   return (
@@ -122,8 +139,7 @@ const AppLayout = ({ children }) => {
             <h1 style={styles.pageTitle}>{getPageTitle()}</h1>
           </div>
           <div style={styles.contentArea}>
-            {children}
-            {shouldShowFooter && <Footer />}
+            {wrappedChildren}
           </div>
         </SidebarInset>
       </div>

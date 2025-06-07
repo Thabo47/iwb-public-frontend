@@ -1,7 +1,6 @@
 "use client"
-
 import { useLocation, useNavigate } from "react-router-dom"
-
+import { SidebarTrigger } from "./ui/sidebar"
 import {
   Sidebar,
   SidebarContent,
@@ -19,6 +18,10 @@ import {
 const AppSidebar = () => {
   const location = useLocation()
   const navigate = useNavigate()
+  
+  // Check if user is logged in (you'll need to replace this with your actual auth check)
+  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true' // Example check
+  const user = isLoggedIn ? JSON.parse(localStorage.getItem('user')) : null // Example user data
 
   const navigationItems = [
     {
@@ -44,74 +47,104 @@ const AppSidebar = () => {
   ]
 
   const accountItems = [
-    {
-      title: "Login",
-      url: "/login",
-      icon: "🔑",
-    },
-    {
-      title: "Sign Up",
-      url: "/signup",
-      icon: "👤",
-    },
+    ...(!isLoggedIn ? [
+      {
+        title: "Login",
+        url: "/login",
+        icon: "🔑",
+      },
+      {
+        title: "Sign Up",
+        url: "/signup",
+        icon: "👤",
+      }
+    ] : []),
+    ...(isLoggedIn ? [
+      {
+        title: "Profile",
+        url: "/profile",
+        icon: "👤",
+      },
+      {
+        title: "Logout",
+        url: "/logout",
+        icon: "🚪",
+      }
+    ] : [])
   ]
 
   const handleNavigation = (url) => {
+    if (url === '/logout') {
+      // Handle logout logic
+      localStorage.removeItem('isLoggedIn')
+      localStorage.removeItem('user')
+      navigate('/login')
+      return
+    }
     navigate(url)
   }
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar>
       <SidebarHeader>
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "0.75rem",
-            cursor: "pointer",
+            justifyContent: "space-between",
           }}
-          onClick={() => handleNavigation("/home")}
         >
           <div
             style={{
-              width: "2rem",
-              height: "2rem",
-              borderRadius: "0.5rem",
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              color: "#ffffff",
-              fontSize: "1rem",
+              gap: "0.75rem",
+              cursor: "pointer",
             }}
+            onClick={() => handleNavigation("/home")}
           >
-            ♻️
-          </div>
-          <div>
-            <h2
+            <div
               style={{
-                fontSize: "1.25rem",
-                fontWeight: "700",
-                color: "#1e293b",
-                margin: 0,
+                width: "2rem",
+                height: "2rem",
+                borderRadius: "0.5rem",
                 background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#ffffff",
+                fontSize: "1rem",
               }}
             >
-              IWB
-            </h2>
-            <p
-              style={{
-                fontSize: "0.75rem",
-                color: "#64748b",
-                margin: 0,
-              }}
-            >
-              E-Waste Solutions
-            </p>
+              ♻️
+            </div>
+            <div>
+              <h2
+                style={{
+                  fontSize: "1.25rem",
+                  fontWeight: "700",
+                  color: "#1e293b",
+                  margin: 0,
+                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}
+              >
+                IWB
+              </h2>
+              <p
+                style={{
+                  fontSize: "0.75rem",
+                  color: "#64748b",
+                  margin: 0,
+                }}
+              >
+                E-Waste Solutions
+              </p>
+            </div>
           </div>
+          <SidebarTrigger />
         </div>
       </SidebarHeader>
 
@@ -122,25 +155,12 @@ const AppSidebar = () => {
             <SidebarMenu>
               {navigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton isActive={location.pathname === item.url}>
-                    <button
-                      onClick={() => handleNavigation(item.url)}
-                      style={{
-                        width: "100%",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.75rem",
-                        padding: "0",
-                        border: "none",
-                        background: "transparent",
-                        cursor: "pointer",
-                        color: "inherit",
-                        fontSize: "inherit",
-                      }}
-                    >
-                      <span style={{ fontSize: "1rem" }}>{item.icon}</span>
-                      <span>{item.title}</span>
-                    </button>
+                  <SidebarMenuButton 
+                    isActive={location.pathname === item.url}
+                    onClick={() => handleNavigation(item.url)}
+                  >
+                    <span style={{ fontSize: "1rem" }}>{item.icon}</span>
+                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -154,28 +174,38 @@ const AppSidebar = () => {
             <SidebarMenu>
               {accountItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton isActive={location.pathname === item.url}>
-                    <button
-                      onClick={() => handleNavigation(item.url)}
-                      style={{
-                        width: "100%",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.75rem",
-                        padding: "0",
-                        border: "none",
-                        background: "transparent",
-                        cursor: "pointer",
-                        color: "inherit",
-                        fontSize: "inherit",
-                      }}
-                    >
-                      <span style={{ fontSize: "1rem" }}>{item.icon}</span>
-                      <span>{item.title}</span>
-                    </button>
+                  <SidebarMenuButton 
+                    isActive={location.pathname === item.url}
+                    onClick={() => handleNavigation(item.url)}
+                  >
+                    <span style={{ fontSize: "1rem" }}>{item.icon}</span>
+                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              {isLoggedIn && user && (
+                <div style={{ 
+                  padding: '0.75rem 1rem',
+                  borderTop: '1px solid #e2e8f0',
+                  marginTop: '0.5rem'
+                }}>
+                  <p style={{ 
+                    fontSize: '0.875rem',
+                    color: '#64748b',
+                    marginBottom: '0.25rem'
+                  }}>
+                    Logged in as:
+                  </p>
+                  <p style={{ 
+                    fontSize: '0.875rem',
+                    fontWeight: '600',
+                    color: '#1e293b',
+                    margin: 0
+                  }}>
+                    {user.name || user.email || 'User'}
+                  </p>
+                </div>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
