@@ -255,7 +255,7 @@ const Contact = () => {
             fontSize: "1.3rem",
             marginBottom: "15px"
           }}>Email Us 📧</h4>
-          <p style={{ color: "#3498db", fontWeight: "500" }}>info@iwb.co.ls</p>
+          <p style={{ color: "#3498db", fontWeight: "500" }}>thab4231@gmail.com</p>
         </div>
 
         <div style={{
@@ -271,7 +271,7 @@ const Contact = () => {
             fontSize: "1.3rem",
             marginBottom: "15px"
           }}>Call Us 📞</h4>
-          <p style={{ color: "#3498db", fontWeight: "500" }}>+266 1234 5678</p>
+          <p style={{ color: "#3498db", fontWeight: "500" }}>+266 57292688</p>
         </div>
 
         <div style={{
