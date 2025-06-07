@@ -1,11 +1,14 @@
 "use client"
 
+import React from "react"
+import { Link } from "react-router-dom"
+
 const Footer = () => {
   const styles = {
     footerContainer: {
       background: "linear-gradient(135deg, #2c3e50 0%, #34495e 100%)",
       color: "#ecf0f1",
-      padding: "60px 0 20px",
+      padding: "40px 0 20px",
       fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
     },
     footerContent: {
@@ -13,57 +16,52 @@ const Footer = () => {
       margin: "0 auto",
       padding: "0 20px",
       display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-      gap: "40px",
+      gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+      gap: "30px",
     },
     footerSection: {
-      marginBottom: "30px",
+      marginBottom: "20px",
     },
     footerTitle: {
-      fontSize: "1.4rem",
-      fontWeight: "700",
-      marginBottom: "25px",
+      fontSize: "1.2rem",
+      fontWeight: "600",
+      marginBottom: "15px",
       color: "#ffffff",
       position: "relative",
-      paddingBottom: "10px",
+      paddingBottom: "8px",
     },
     titleUnderline: {
       position: "absolute",
       bottom: "0",
       left: "0",
-      width: "40px",
-      height: "3px",
+      width: "30px",
+      height: "2px",
       background: "linear-gradient(90deg, #3498db, #2ecc71)",
       borderRadius: "2px",
     },
     aboutText: {
-      lineHeight: "1.7",
+      lineHeight: "1.6",
       color: "#bdc3c7",
-      fontSize: "1rem",
-      marginBottom: "25px",
+      fontSize: "0.9rem",
+      marginBottom: "20px",
     },
     socialIcons: {
       display: "flex",
-      gap: "15px",
+      gap: "12px",
     },
     socialIcon: {
       display: "inline-flex",
       alignItems: "center",
       justifyContent: "center",
-      width: "45px",
-      height: "45px",
+      width: "36px",
+      height: "36px",
       backgroundColor: "rgba(255,255,255,0.1)",
       borderRadius: "50%",
       color: "#ecf0f1",
       textDecoration: "none",
-      fontSize: "1.2rem",
+      fontSize: "1rem",
       transition: "all 0.3s ease",
-      border: "2px solid transparent",
-    },
-    socialIconHover: {
-      backgroundColor: "#3498db",
-      transform: "translateY(-3px)",
-      boxShadow: "0 8px 20px rgba(52,152,219,0.3)",
+      cursor: "pointer",
     },
     footerLinks: {
       listStyle: "none",
@@ -71,41 +69,55 @@ const Footer = () => {
       margin: "0",
     },
     footerLinkItem: {
-      marginBottom: "12px",
+      marginBottom: "10px",
     },
     footerLink: {
       color: "#bdc3c7",
       textDecoration: "none",
-      fontSize: "1rem",
-      transition: "all 0.3s ease",
+      fontSize: "0.9rem",
+      transition: "all 0.2s ease",
       display: "inline-block",
-      position: "relative",
     },
     footerLinkHover: {
       color: "#3498db",
-      paddingLeft: "10px",
+      transform: "translateX(5px)",
     },
     contactInfo: {
       display: "flex",
       alignItems: "flex-start",
-      marginBottom: "15px",
+      marginBottom: "12px",
       color: "#bdc3c7",
+      fontSize: "0.9rem",
     },
     contactIcon: {
-      marginRight: "12px",
-      marginTop: "2px",
+      marginRight: "10px",
       color: "#3498db",
-      fontSize: "1.1rem",
+      fontSize: "1rem",
     },
     copyright: {
       borderTop: "1px solid rgba(255,255,255,0.1)",
-      marginTop: "40px",
-      paddingTop: "25px",
+      marginTop: "30px",
+      paddingTop: "20px",
       textAlign: "center",
       color: "#95a5a6",
-      fontSize: "0.95rem",
+      fontSize: "0.85rem",
     },
   }
+
+  // Helper function for hover effect on links
+  const handleMouseEnter = (e) => {
+    Object.assign(e.target.style, styles.footerLinkHover)
+  }
+  const handleMouseLeave = (e) => {
+    Object.assign(e.target.style, styles.footerLink)
+  }
+
+  const links = [
+    { name: "Home", path: "/home" },
+    { name: "About", path: "/about" },
+    { name: "Services", path: "/services" },
+    { name: "Contact", path: "/contact" },
+  ]
 
   return (
     <footer style={styles.footerContainer}>
@@ -121,86 +133,38 @@ const Footer = () => {
             valuable resources while protecting our environment.
           </p>
           <div style={styles.socialIcons}>
-            <a
-              href="#"
-              style={styles.socialIcon}
-              onMouseEnter={(e) => Object.assign(e.target.style, styles.socialIconHover)}
-              onMouseLeave={(e) => Object.assign(e.target.style, styles.socialIcon)}
-            >
-              📘
-            </a>
-            <a
-              href="#"
-              style={styles.socialIcon}
-              onMouseEnter={(e) => Object.assign(e.target.style, styles.socialIconHover)}
-              onMouseLeave={(e) => Object.assign(e.target.style, styles.socialIcon)}
-            >
-              🐦
-            </a>
-            <a
-              href="#"
-              style={styles.socialIcon}
-              onMouseEnter={(e) => Object.assign(e.target.style, styles.socialIconHover)}
-              onMouseLeave={(e) => Object.assign(e.target.style, styles.socialIcon)}
-            >
-              📷
-            </a>
-            <a
-              href="#"
-              style={styles.socialIcon}
-              onMouseEnter={(e) => Object.assign(e.target.style, styles.socialIconHover)}
-              onMouseLeave={(e) => Object.assign(e.target.style, styles.socialIcon)}
-            >
-              💼
-            </a>
+            {['📘', '🐦', '📷'].map((icon, index) => (
+              <a
+                key={index}
+                href="#"
+                style={styles.socialIcon}
+                onMouseEnter={(e) => (e.target.style.color = "#3498db")}
+                onMouseLeave={(e) => (e.target.style.color = "#ecf0f1")}
+                aria-label={icon === '📘' ? 'Facebook' : icon === '🐦' ? 'Twitter' : 'Instagram'}
+              >
+                {icon}
+              </a>
+            ))}
           </div>
         </div>
 
-        {/* Quick Links */}
+        {/* Essential Links */}
         <div style={styles.footerSection}>
           <h3 style={styles.footerTitle}>
             Quick Links
             <span style={styles.titleUnderline}></span>
           </h3>
           <ul style={styles.footerLinks}>
-            {["Home", "About", "Services", "Contact", "Investor Dashboard"].map((item) => (
-              <li key={item} style={styles.footerLinkItem}>
-                <a
-                  href={`#${item.toLowerCase().replace(" ", "-")}`}
+            {links.map(({ name, path }) => (
+              <li key={name} style={styles.footerLinkItem}>
+                <Link
+                  to={path}
                   style={styles.footerLink}
-                  onMouseEnter={(e) => Object.assign(e.target.style, styles.footerLinkHover)}
-                  onMouseLeave={(e) => Object.assign(e.target.style, styles.footerLink)}
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
                 >
-                  {item}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Services */}
-        <div style={styles.footerSection}>
-          <h3 style={styles.footerTitle}>
-            Our Services
-            <span style={styles.titleUnderline}></span>
-          </h3>
-          <ul style={styles.footerLinks}>
-            {[
-              "RAM Recycling",
-              "Hard Drive Processing",
-              "Motherboard Recovery",
-              "Data Destruction",
-              "Component Refurbishment",
-            ].map((service) => (
-              <li key={service} style={styles.footerLinkItem}>
-                <a
-                  href="#"
-                  style={styles.footerLink}
-                  onMouseEnter={(e) => Object.assign(e.target.style, styles.footerLinkHover)}
-                  onMouseLeave={(e) => Object.assign(e.target.style, styles.footerLink)}
-                >
-                  {service}
-                </a>
+                  {name}
+                </Link>
               </li>
             ))}
           </ul>
@@ -214,23 +178,15 @@ const Footer = () => {
           </h3>
           <div style={styles.contactInfo}>
             <span style={styles.contactIcon}>📍</span>
-            <span>
-              123 Eco Park, Suite 400
-              <br />
-              Maseru, Lesotho
-            </span>
+            <span>123 Eco Park, Maseru, Lesotho</span>
           </div>
           <div style={styles.contactInfo}>
             <span style={styles.contactIcon}>📞</span>
-            <span>+266 1234 5678</span>
+            <span>+266 57292688</span>
           </div>
           <div style={styles.contactInfo}>
             <span style={styles.contactIcon}>📧</span>
-            <span>info@iwb.co.ls</span>
-          </div>
-          <div style={styles.contactInfo}>
-            <span style={styles.contactIcon}>🌐</span>
-            <span>www.iwb.co.ls</span>
+            <span>thabo4231@gmail.com</span>
           </div>
         </div>
       </div>

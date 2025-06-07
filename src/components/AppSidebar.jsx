@@ -1,4 +1,5 @@
 "use client"
+import React, { useState, useEffect } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { SidebarTrigger } from "./ui/sidebar"
 import {
@@ -18,75 +19,59 @@ import {
 const AppSidebar = () => {
   const location = useLocation()
   const navigate = useNavigate()
-  
-  // Check if user is logged in (you'll need to replace this with your actual auth check)
-  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true' // Example check
-  const user = isLoggedIn ? JSON.parse(localStorage.getItem('user')) : null // Example user data
 
-  const navigationItems = [
-    {
-      title: "Home",
-      url: "/home",
-      icon: "🏠",
-    },
-    {
-      title: "About",
-      url: "/about",
-      icon: "ℹ️",
-    },
-    {
-      title: "Services",
-      url: "/services",
-      icon: "⚙️",
-    },
-    {
-      title: "Contact",
-      url: "/contact",
-      icon: "📞",
-    },
-  ]
+  // State to track login status and user info
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [user, setUser] = useState(null)
 
-  const accountItems = [
-    ...(!isLoggedIn ? [
-      {
-        title: "Login",
-        url: "/login",
-        icon: "🔑",
-      },
-      {
-        title: "Sign Up",
-        url: "/signup",
-        icon: "👤",
-      }
-    ] : []),
-    ...(isLoggedIn ? [
-      {
-        title: "Profile",
-        url: "/profile",
-        icon: "👤",
-      },
-      {
-        title: "Logout",
-        url: "/logout",
-        icon: "🚪",
-      }
-    ] : [])
-  ]
+  // On mount, read login status from localStorage
+  useEffect(() => {
+    const loggedIn = localStorage.getItem('isLoggedIn') === 'true'
+    setIsLoggedIn(loggedIn)
+    if (loggedIn) {
+      const storedUser = localStorage.getItem('user')
+      setUser(storedUser ? JSON.parse(storedUser) : null)
+    } else {
+      setUser(null)
+    }
+  }, [])
+
+  // Handle logout and update state
+  const handleLogout = () => {
+    localStorage.removeItem('isLoggedIn')
+    localStorage.removeItem('user')
+    setIsLoggedIn(false)
+    setUser(null)
+    navigate('/login')
+  }
 
   const handleNavigation = (url) => {
     if (url === '/logout') {
-      // Handle logout logic
-      localStorage.removeItem('isLoggedIn')
-      localStorage.removeItem('user')
-      navigate('/login')
+      handleLogout()
       return
     }
     navigate(url)
   }
 
+  const navigationItems = [
+    { title: "Home", url: "/home", icon: "🏠" },
+    { title: "About", url: "/about", icon: "ℹ️" },
+    { title: "Services", url: "/services", icon: "⚙️" },
+    { title: "Contact", url: "/contact", icon: "📞" },
+  ]
+
+  const accountItems = !isLoggedIn ? [
+    { title: "Login", url: "/login", icon: "🔑" },
+    { title: "Sign Up", url: "/signup", icon: "👤" }
+  ] : [
+    { title: "Profile", url: "/profile", icon: "👤" },
+    { title: "Logout", url: "/logout", icon: "🚪" }
+  ]
+
   return (
     <Sidebar>
       <SidebarHeader>
+        {/* ... your existing header code ... */}
         <div
           style={{
             display: "flex",
@@ -155,7 +140,7 @@ const AppSidebar = () => {
             <SidebarMenu>
               {navigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
+                  <SidebarMenuButton
                     isActive={location.pathname === item.url}
                     onClick={() => handleNavigation(item.url)}
                   >
@@ -174,7 +159,7 @@ const AppSidebar = () => {
             <SidebarMenu>
               {accountItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
+                  <SidebarMenuButton
                     isActive={location.pathname === item.url}
                     onClick={() => handleNavigation(item.url)}
                   >
@@ -184,24 +169,30 @@ const AppSidebar = () => {
                 </SidebarMenuItem>
               ))}
               {isLoggedIn && user && (
-                <div style={{ 
-                  padding: '0.75rem 1rem',
-                  borderTop: '1px solid #e2e8f0',
-                  marginTop: '0.5rem'
-                }}>
-                  <p style={{ 
-                    fontSize: '0.875rem',
-                    color: '#64748b',
-                    marginBottom: '0.25rem'
-                  }}>
+                <div
+                  style={{
+                    padding: '0.75rem 1rem',
+                    borderTop: '1px solid #e2e8f0',
+                    marginTop: '0.5rem'
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: '0.875rem',
+                      color: '#64748b',
+                      marginBottom: '0.25rem'
+                    }}
+                  >
                     Logged in as:
                   </p>
-                  <p style={{ 
-                    fontSize: '0.875rem',
-                    fontWeight: '600',
-                    color: '#1e293b',
-                    margin: 0
-                  }}>
+                  <p
+                    style={{
+                      fontSize: '0.875rem',
+                      fontWeight: '600',
+                      color: '#1e293b',
+                      margin: 0
+                    }}
+                  >
                     {user.name || user.email || 'User'}
                   </p>
                 </div>
@@ -212,11 +203,7 @@ const AppSidebar = () => {
       </SidebarContent>
 
       <SidebarFooter>
-        <div
-          style={{
-            textAlign: "center",
-          }}
-        >
+        <div style={{ textAlign: "center" }}>
           <p
             style={{
               fontSize: "0.75rem",
@@ -224,7 +211,7 @@ const AppSidebar = () => {
               margin: "0 0 0.25rem 0",
             }}
           >
-            © 2024 IWB Solutions
+            © 2025 IWB Solutions
           </p>
           <p
             style={{
